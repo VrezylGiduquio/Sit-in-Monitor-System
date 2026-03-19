@@ -1,0 +1,87 @@
+  <!DOCTYPE html>
+    <html>
+    <head>
+    <title>Students</title>
+    <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+
+    <header>
+        <div class="nav-left">
+            <h2>CCS Admin Panel</h2>
+         </div>
+
+        <nav class="nav-links">
+            <button onclick="goTo('home')">Home</button>
+            <button onclick="goTo('search')">Search</button>
+            <button onclick="goTo('students')">Students</button>
+            <button onclick="goTo('sitin')">Sit-in</button>
+            <button onclick="goTo('records')">View Sit-in Records</button>
+            <button onclick="goTo('reports')">Sit-in Reports</button>
+            <button onclick="goTo('feedback')">Feedback Reports</button>
+            <button onclick="goTo('reservation')">Reservation</button>
+         </nav>
+
+         <div class="nav-right">
+            <button onclick="logout()">Logout</button>
+        </div>
+    </header>
+
+    <main>
+    <h1>Students</h1>
+
+    <div class="table-controls">
+     <button onclick="addStudent()">Add Student</button>
+
+        <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Search by ID or Name..."
+            onkeyup="searchStudents()"
+        >
+       </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Year</th>
+            <th>Course</th>
+            <th>Remaining</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody id="table"></tbody>
+    </table>
+    </main>
+
+
+            <!-- Edit Student Pop-up -->
+        <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h2>Edit Student</h2>
+            <form id="editForm">
+            <input type="hidden" id="edit_student_id">
+            <label>First Name:</label>
+            <input type="text" id="edit_first_name" required>
+            <label>Last Name:</label>
+            <input type="text" id="edit_last_name" required>
+            <label>Middle Name:</label>
+            <input type="text" id="edit_middle_name">
+            <label>Course Level:</label>
+            <input type="text" id="edit_course_level">
+            <label>Course:</label>
+            <input type="text" id="edit_course">
+            <label>Email:</label>
+            <input type="email" id="edit_email">
+            <label>Remaining Sessions:</label>
+            <input type="number" id="edit_remaining_sessions" min="0">
+            <button type="submit">Save Changes</button>
+            </form>
+        </div>
+        </div>
+    <script src="app.js"></script>
+    </body>
+    </html>

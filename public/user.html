@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+  <div class="nav-left">
+    <h2>CCS Sit-in Monitoring System Student Dashboard</h2>
+  </div>
+
+  <nav id="navLinks" class="nav-links"></nav>
+
+  <div class="nav-right">
+    <button onclick="logout()">Logout</button>
+  </div>
+</header>
+
+ <main>
+  <div class="dashboard-container">
+
+    <!-- STUDENT INFORMATION -->
+    <section class="dashboard-box student-box">
+      <div class="dashboard-header">
+        <h3>Student Information</h3>
+      </div>
+
+      <div class="dashboard-content student-card">
+        
+        <!-- Profile -->
+        <div class="profile-section">
+           <img src="./img/empty-pic.jpg" alt="Student Profile" id="profileImage">
+        </div>
+
+        <!-- Student Details -->
+        <div class="student-details">
+          <div class="info-row">
+            <span class="icon">🧑‍🎓</span>
+            <span><strong>Name:</strong> Matty </span>
+          </div>
+
+          <div class="info-row">
+            <span class="icon">🆔</span>
+            <span><strong>ID:</strong> 20260001</span>
+          </div>
+
+          <div class="info-row">
+            <span class="icon">🎓</span>
+            <span><strong>Course:</strong> BSIT</span>
+          </div>
+
+          <div class="info-row">
+            <span class="icon">📚</span>
+            <span><strong>Year:</strong> 3</span>
+          </div>
+
+          <div class="info-row">
+            <span class="icon">⏳</span>
+            <span><strong>Remaining Sessions:</strong> 12</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ANNOUNCEMENTS -->
+   <section class="dashboard-box">
+    <div class="dashboard-header">
+      <h3>Announcements</h3>
+    </div>
+
+    <div class="dashboard-content">
+      <ul class="list">
+        <li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</li>
+        <li>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</li>
+        <li>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</li>
+        <li>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</li>
+      </ul>
+    </div>
+</section>
+
+    <!-- RULES & REGULATIONS -->
+    <section class="dashboard-box">
+      <div class="dashboard-header">
+        <h3>Rules & Regulations</h3>
+      </div>
+
+      <div class="dashboard-content">
+        <ul class="list">
+            <li>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin nec felis eu lacus volutpat porta. 
+        Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.
+
+        <br><br>
+
+        Sed aliquam, nisi quis porttitor congue, elit erat euismod orci, ac placerat dolor lectus quis orci. 
+        Phasellus consectetuer vestibulum elit. Aenean tellus metus, bibendum sed, posuere ac, mattis non, nunc.
+
+        <br><br>
+
+        Praesent adipiscing. Phasellus ullamcorper ipsum rutrum nunc. Nunc nonummy metus. 
+        Vestibulum volutpat pretium libero. Cras id dui.
+      </li>
+
+      <li>
+        Nullam nulla eros, ultricies sit amet, nonummy id, imperdiet feugiat, pede. Sed lectus. 
+        Donec mollis hendrerit risus. Phasellus nec sem in justo pellentesque facilisis.
+
+        <br><br>
+
+        Etiam imperdiet imperdiet orci. Nunc nec neque. Phasellus leo dolor, tempus non, auctor et, hendrerit quis, nisi. 
+        Curabitur ligula sapien, tincidunt non, euismod vitae, posuere imperdiet, leo.
+
+        <br><br>
+
+        Maecenas malesuada. Praesent congue erat at massa. Sed cursus turpis vitae tortor. 
+        Donec posuere vulputate arcu. Phasellus accumsan cursus velit.
+      </li>
+         <li>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin nec felis eu lacus volutpat porta. 
+        Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.
+
+        <br><br>
+
+        Sed aliquam, nisi quis porttitor congue, elit erat euismod orci, ac placerat dolor lectus quis orci. 
+        Phasellus consectetuer vestibulum elit. Aenean tellus metus, bibendum sed, posuere ac, mattis non, nunc.
+
+        <br><br>
+
+        Praesent adipiscing. Phasellus ullamcorper ipsum rutrum nunc. Nunc nonummy metus. 
+        Vestibulum volutpat pretium libero. Cras id dui.
+      </li>
+
+      <li>
+        Nullam nulla eros, ultricies sit amet, nonummy id, imperdiet feugiat, pede. Sed lectus. 
+        Donec mollis hendrerit risus. Phasellus nec sem in justo pellentesque facilisis.
+
+        <br><br>
+
+        Etiam imperdiet imperdiet orci. Nunc nec neque. Phasellus leo dolor, tempus non, auctor et, hendrerit quis, nisi. 
+        Curabitur ligula sapien, tincidunt non, euismod vitae, posuere imperdiet, leo.
+
+        <br><br>
+
+        Maecenas malesuada. Praesent congue erat at massa. Sed cursus turpis vitae tortor. 
+        Donec posuere vulputate arcu. Phasellus accumsan cursus velit.
+      </li>
+           
+         </ul>
+        </ul>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script src="user.js" defer></script>
+</body>
+</html>
