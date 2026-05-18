@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Student Dashboard</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 
 <body>
@@ -26,7 +27,7 @@
     <!-- STUDENT INFORMATION -->
     <section class="dashboard-box student-box">
       <div class="dashboard-header">
-        <h3>Student Information</h3>
+        <h3><i class="fa-solid fa-book" style="margin-right: 8px;"></i>Student Information</h3>
       </div>
 
       <div class="dashboard-content student-card">
@@ -39,38 +40,36 @@
         <!-- Student Details -->
         <div class="student-details">
           <div class="info-row">
-            <span class="icon">🧑‍🎓</span>
-            <span><strong>Name:</strong> Matty </span>
-          </div>
+              <span class="icon"><i class="fas fa-user-graduate"></i></span>
+              <span><strong>Name:</strong> <span id="studentName"></span></span>
+            </div>
 
-          <div class="info-row">
-            <span class="icon">🆔</span>
-            <span><strong>ID:</strong> 20260001</span>
-          </div>
+            <div class="info-row">
+              <span class="icon"><i class="fas fa-id-card"></i></span>
+              <span><strong>ID:</strong> <span id="studentId"></span></span>
+            </div>
 
-          <div class="info-row">
-            <span class="icon">🎓</span>
-            <span><strong>Course:</strong> BSIT</span>
-          </div>
+            <div class="info-row">
+              <span class="icon"><i class="fas fa-book"></i></span>
+              <span><strong>Course:</strong> <span id="studentCourse"></span></span>
+            </div>
 
-          <div class="info-row">
-            <span class="icon">📚</span>
-            <span><strong>Year:</strong> 3</span>
-          </div>
+            <div class="info-row">
+              <span class="icon"><i class="fas fa-layer-group"></i></span>
+              <span><strong>Year:</strong> <span id="studentYear"></span></span>
+            </div>
 
-          <div class="info-row">
-            <span class="icon">⏳</span>
-            <span><strong>Remaining Sessions:</strong> 12</span>
-          </div>
-        </div>
-
+            <div class="info-row">
+              <span class="icon"><i class="fas fa-clock"></i></span>
+              <span><strong>Remaining Sessions:</strong> <span id="remainingSessions"></span></span>
+            </div>
       </div>
     </section>
 
     <!-- ANNOUNCEMENTS -->
    <section class="dashboard-box">
     <div class="dashboard-header">
-      <h3>Announcements</h3>
+      <h3><i class="fa-solid fa-bullhorn" style="margin-right: 8px;"></i>Announcements</h3>
     </div>
 
     <div class="dashboard-content">
@@ -86,7 +85,7 @@
     <!-- RULES & REGULATIONS -->
     <section class="dashboard-box">
       <div class="dashboard-header">
-        <h3>Rules & Regulations</h3>
+        <h3><i class="fa-solid fa-list-check" style="margin-right: 8px;"></i>Rules & Regulations</h3>
       </div>
 
       <div class="dashboard-content">

@@ -41,6 +41,7 @@ db.serialize(() => {
   )
 `);
 
+
   // Create default admin
   db.get("SELECT * FROM admins WHERE username = 'admin'", (err, row) => {
     if (!row) {
@@ -54,5 +55,18 @@ db.serialize(() => {
   });
 });
 
+db.run(`
+  CREATE TABLE IF NOT EXISTS reservations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT,
+    purpose TEXT,
+    room INTEGER,
+    date TEXT,
+    start_time TEXT,
+    end_time TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
 module.exports = db;

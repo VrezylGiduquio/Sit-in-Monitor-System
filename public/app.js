@@ -14,6 +14,12 @@ function logout() {
   window.location.href = "login.html";
 }
 
+function goTo(url) {
+    // Navigate to the page
+    if(url == "home"){ window.location.href = "admin.html";}
+    else{ window.location.href = url + ".html";}
+}
+
 // Fetch all students
 async function fetchStudents() {
   try {
@@ -47,31 +53,11 @@ function renderTable(students) {
       <td>${s.course}</td>
       <td>${s.remaining_sessions}</td>
       <td>
-        <button onclick="openEditModal('${s.student_id}')">Edit</button>
-        <button onclick="deleteStudent('${s.student_id}')">Delete</button>
+        <button style="background-color: green;" onclick="openEditModal('${s.student_id}')">Edit</button>
+        <button style="background-color: red;" onclick="deleteStudent('${s.student_id}')">Delete</button>
       </td>
     </tr>
   `).join("");
-}
-
-// Add new student
-async function addStudent() {
-  const student_id = prompt("Enter Student ID:");
-
-  if (!student_id) return;
-
-  await fetch(API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + token
-    },
-    body: JSON.stringify({
-      student_id
-    })
-  });
-
-  fetchStudents();
 }
 
 // Search function

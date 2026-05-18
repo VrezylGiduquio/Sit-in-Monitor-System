@@ -19,6 +19,10 @@ app.use(express.static("public"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/students", require("./routes/students"));
 app.use("/api/users", require("./routes/users"));
+app.use("/api/reservations", require("./routes/reservations"));
+
+const adminReservations = require("./routes/sitin");
+app.use("/admin", adminReservations);
 
 app.listen(PORT, () => {
   console.log("Server running on http://localhost:3000");

@@ -3,6 +3,7 @@
     <head>
     <title>Students</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     </head>
     <body>
 
@@ -16,7 +17,7 @@
             <button onclick="goTo('search')">Search</button>
             <button onclick="goTo('students')">Students</button>
             <button onclick="goTo('sitin')">Sit-in</button>
-            <button onclick="goTo('records')">View Sit-in Records</button>
+            <button onclick="goTo('view-records')">View Sit-in Records</button>
             <button onclick="goTo('reports')">Sit-in Reports</button>
             <button onclick="goTo('feedback')">Feedback Reports</button>
             <button onclick="goTo('reservation')">Reservation</button>
@@ -31,7 +32,7 @@
     <h1>Students</h1>
 
     <div class="table-controls">
-     <button onclick="addStudent()">Add Student</button>
+     <button style="background: rgb(28, 182, 243); padding: .8rem ;"><i class="fa-solid fa-plus"></i> Add Student</button>
 
         <input 
             type="text" 

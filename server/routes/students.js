@@ -22,6 +22,46 @@ router.get("/", verifyToken, (req, res) => {
   });
 });
 
+// GET LOGGED-IN STUDENT (UPDATED)
+router.get("/me", verifyToken, (req, res) => {
+  const userId = req.user.id; // from JWT
+
+  db.get(
+    `SELECT 
+       u.student_id,
+       u.first_name,
+       u.last_name,
+       u.middle_name,
+       u.course_level AS year_level,
+       u.course,
+       u.email
+     FROM users u
+     WHERE u.id = ?`,
+    [userId],
+    (err, student) => {
+      if (err) return res.status(500).json({ success: false, message: "Database error" });
+      if (!student) return res.status(404).json({ success: false, message: "Student not found" });
+
+      // Count active reservations
+      db.all(
+        `SELECT COUNT(*) AS activeCount 
+         FROM reservations 
+         WHERE student_id = ? AND status != 'terminated'`,
+        [student.student_id],
+        (err2, countRows) => {
+          if (err2) return res.status(500).json({ success: false, message: "Database error" });
+
+          const totalSessions = 30;
+          const usedSessions = countRows[0].activeCount || 0;
+          student.remaining_sessions = totalSessions - usedSessions;
+
+          res.json(student);
+        }
+      );
+    }
+  );
+});
+
 // ADD
 router.post("/", verifyToken, (req, res) => {
   const { student_id } = req.body;

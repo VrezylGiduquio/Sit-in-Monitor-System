@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Reservations</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    /* Tabs */
+    .tabs { margin: 1rem 0; }
+    .tabs button { padding: 0.5rem 1rem; margin-right: 5px; cursor: pointer; }
+    .active-tab { background-color: #007bff; color: white; border: none; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    button.approve-btn { background: green; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="nav-left">
+      <h2>CCS Admin Panel</h2>
+  </div>
+
+  <nav class="nav-links">
+      <button onclick="goTo('home')">Home</button>
+      <button onclick="goTo('search')">Search</button>
+      <button onclick="goTo('students')">Students</button>
+      <button onclick="goTo('sitin')">Sit-in</button>
+      <button onclick="goTo('view-records')">View Sit-in Records</button>
+      <button onclick="goTo('reports')">Sit-in Reports</button>
+      <button onclick="goTo('feedback')">Feedback Reports</button>
+      <button onclick="goTo('reservation')">Reservation</button>
+  </nav>
+
+  <div class="nav-right">
+      <button onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<main>
+  <h1>Reservations</h1>
+
+  <div class="tabs">
+      <button id="pendingTab" class="active-tab">PENDING</button>
+      <button id="ongoingTab">ONGOING</button>
+  </div>
+
+  <table>
+      <thead>
+          <tr>
+              <th>Student ID</th>
+              <th>Purpose</th>
+              <th>Room</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Status</th>
+              <th>Action</th>
+          </tr>
+      </thead>
+      <tbody id="reservationTable"></tbody>
+  </table>
+</main>
+
+<script>
+let currentStatus = "pending";
+
+const pendingTab = document.getElementById("pendingTab");
+const ongoingTab = document.getElementById("ongoingTab");
+const tableBody = document.getElementById("reservationTable");
+
+pendingTab.addEventListener("click", () => switchTab("pending"));
+ongoingTab.addEventListener("click", () => switchTab("ongoing"));
+
+function switchTab(status) {
+    currentStatus = status;
+    pendingTab.classList.toggle("active-tab", status === "pending");
+    ongoingTab.classList.toggle("active-tab", status === "ongoing");
+    loadReservations();
+}
+
+async function loadReservations() {
+    try {
+        const res = await fetch(`/admin/reservations?status=${currentStatus}`);
+        const data = await res.json();
+
+        tableBody.innerHTML = "";
+
+        if (data.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center">No ${currentStatus} reservations</td></tr>`;
+            return;
+        }
+
+        data.forEach(r => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${r.student_id}</td>
+                <td>${r.purpose}</td>
+                <td>${r.room}</td>
+                <td>${r.date}</td>
+                <td>${r.start_time} - ${r.end_time}</td>
+                <td>${r.status}</td>
+                <td>
+                    ${
+                        r.status === 'pending'
+                        ? `<button class="approve-btn" onclick="approveReservation(${r.id})">Approve</button>`
+                        : r.status === 'ongoing'
+                        ? `<button class="approve-btn" style="background:red;" onclick="terminateReservation(${r.id})">Terminate</button>`
+                        : ''
+                    }
+                    </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function approveReservation(id) {
+    try {
+        const res = await fetch(`/admin/reservations/approve/${id}`, { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+            loadReservations(); // refresh current tab
+        } else {
+            alert(data.message);
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function terminateReservation(id) {
+    try {
+        const res = await fetch(`/admin/reservations/terminate/${id}`, {
+            method: "POST"
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            loadReservations(); // refresh table
+        } else {
+            alert(data.message);
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// Initial load
+loadReservations();
+  
+function goTo(url) {
+    // Navigate to the page
+    if(url == "home"){ window.location.href = "admin.html";}
+    else{ window.location.href = url + ".html";}
+}
+// Dummy navigation/logout
+
+function logout() {
+  localStorage.removeItem("token");
+  window.location.href = "login.html";
+}
+
+</script>
+</body>
+</html>

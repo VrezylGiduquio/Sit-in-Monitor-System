@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>View Sit-in Records</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+
+<header>
+  <div class="nav-left">
+    <h2>CCS Admin Panel</h2>
+  </div>
+
+  <nav class="nav-links">
+     <button onclick="goTo('home')">Home</button>
+    <button onclick="goTo('search')">Search</button>
+    <button onclick="goTo('students')">Students</button>
+    <button onclick="goTo('sitin')">Sit-in</button>
+    <button onclick="goTo('view-records')">View Sit-in Records</button>
+    <button onclick="goTo('reports')">Sit-in Reports</button>
+    <button onclick="goTo('feedback')">Feedback Reports</button>
+    <button onclick="goTo('reservation')">Reservation</button>
+  </nav>
+
+  <div class="nav-right">
+    <button onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<main>
+  <div class="dashboard-container">
+
+    <section class="dashboard-box">
+      <div class="dashboard-header">
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> Sit-in Records (History)</h3>
+      </div>
+
+      <div class="dashboard-content">
+        <table>
+          <thead>
+            <tr>
+              <th>Student ID</th>
+              <th>Purpose</th>
+              <th>Room</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="recordsTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script src="view-records.js"></script>
+
+</body>
+</html>
