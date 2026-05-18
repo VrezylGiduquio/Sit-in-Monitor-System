@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar sidebar-admin">
+      <div class="sidebar-brand">
+        <p class="sidebar-kicker">CCS Sit-in</p>
+        <h2>Admin Panel</h2>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="sidebar-link" onclick="goTo('home')"><i class="fa-solid fa-house"></i><span>Dashboard</span></button>
+        <button class="sidebar-link" onclick="goTo('students')"><i class="fa-solid fa-users"></i><span>Students</span></button>
+        <button class="sidebar-link" onclick="goTo('sitin')"><i class="fa-solid fa-calendar-check"></i><span>Reservations</span></button>
+        <button class="sidebar-link" onclick="goTo('view-records')"><i class="fa-solid fa-file-lines"></i><span>View Records</span></button>
+        <button class="sidebar-link" onclick="goTo('reports')"><i class="fa-solid fa-file-export"></i><span>Reports</span></button>
+        <button class="sidebar-link" onclick="goTo('leaderboard')"><i class="fa-solid fa-trophy"></i><span>Leaderboard</span></button>
+        <button class="sidebar-link active" onclick="goTo('analytics')"><i class="fa-solid fa-chart-pie"></i><span>Analytics</span></button>
+        <button class="sidebar-link" onclick="goTo('software')"><i class="fa-solid fa-upload"></i><span>Software</span></button>
+        <button class="sidebar-link" onclick="goTo('ai-recommendation')"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI Recommendation</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-logout" onclick="logout()">Logout</button>
+      </div>
+    </aside>
+
+    <main class="app-content">
+      <div class="content-topbar">
+        <p class="content-kicker">Administrator</p>
+        <h1 class="content-title">Analytics</h1>
+      </div>
+      <div class="dashboard-main">
+        <div class="dashboard-grid dashboard-grid-admin">
+          <section class="dashboard-box dashboard-box-wide">
+            <div class="dashboard-header">
+              <h3><i class="fa-solid fa-chart-simple"></i> Summary</h3>
+            </div>
+            <div class="dashboard-content stats-grid">
+              <div class="stat-card"><h4>Total Sit-in Hours</h4><p id="adminTotalHours">0hs</p></div>
+              <div class="stat-card"><h4>Number of Sessions</h4><p id="adminSessionCount">0</p></div>
+              <div class="stat-card"><h4>Average Session Duration</h4><p id="adminAvgDuration">0 mins</p></div>
+              <div class="stat-card"><h4>Longest Session</h4><p id="adminLongestSession">0 mins</p></div>
+            </div>
+          </section>
+          <section class="dashboard-box dashboard-box-wide">
+            <div class="dashboard-header">
+              <h3><i class="fa-solid fa-chart-column"></i> Usage Snapshot</h3>
+            </div>
+            <div class="dashboard-content usage-snapshot">
+              <div>
+                <h4 class="section-title">Top Rooms</h4>
+                <ul class="mini-leaderboard" id="topRoomsList"><li><span>Loading rooms...</span><strong>--</strong></li></ul>
+              </div>
+              <div>
+                <h4 class="section-title">Recent Activity</h4>
+                <ul class="mini-leaderboard" id="recentActivityList"><li><span>Loading activity...</span><strong>--</strong></li></ul>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div id="toast" class="toast" aria-live="polite"></div>
+  <script src="admin-dashboard.js" defer></script>
+</body>
+</html>

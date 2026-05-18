@@ -2,161 +2,163 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student Dashboard</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
-
 <body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <p class="sidebar-kicker">CCS Sit-in</p>
+        <h2>Student Panel</h2>
+      </div>
+      <nav id="navLinks" class="sidebar-nav"></nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-logout" onclick="logout()">Logout</button>
+      </div>
+    </aside>
 
-<header>
-  <div class="nav-left">
-    <h2>CCS Sit-in Monitoring System Student Dashboard</h2>
-  </div>
-
-  <nav id="navLinks" class="nav-links"></nav>
-
-  <div class="nav-right">
-    <button onclick="logout()">Logout</button>
-  </div>
-</header>
-
- <main>
-  <div class="dashboard-container">
-
-    <!-- STUDENT INFORMATION -->
-    <section class="dashboard-box student-box">
-      <div class="dashboard-header">
-        <h3><i class="fa-solid fa-book" style="margin-right: 8px;"></i>Student Information</h3>
+    <main class="app-content">
+      <div class="content-topbar">
+        <div>
+          <p class="content-kicker">Student Workspace</p>
+          <h1 class="content-title">Dashboard</h1>
+        </div>
       </div>
 
-      <div class="dashboard-content student-card">
-        
-        <!-- Profile -->
-        <div class="profile-section">
-           <img src="./img/empty-pic.jpg" alt="Student Profile" id="profileImage">
+      <div class="dashboard-main">
+    <section class="hero-panel">
+      <div>
+        <p class="eyebrow">Student Dashboard</p>
+        <h1 id="welcomeHeading">Welcome back</h1>
+        <p class="hero-copy">Review your profile, latest announcements, and current laboratory rules in one place.</p>
+      </div>
+    </section>
+
+    <div class="dashboard-grid dashboard-grid-student">
+      <section class="dashboard-box student-box student-profile-card student-main-panel">
+        <div class="dashboard-header">
+          <h3><i class="fa-solid fa-id-badge"></i> Student Information</h3>
         </div>
-
-        <!-- Student Details -->
-        <div class="student-details">
-          <div class="info-row">
+        <div class="dashboard-content student-card">
+          <div class="profile-section">
+            <img src="./img/empty-pic.jpg" alt="Student Profile" id="profileImage">
+            <button class="profile-edit-btn" type="button" id="editProfileBtn">Edit Profile</button>
+          </div>
+          <div class="student-details">
+            <div class="info-row">
               <span class="icon"><i class="fas fa-user-graduate"></i></span>
-              <span><strong>Name:</strong> <span id="studentName"></span></span>
+              <span><strong>Name:</strong> <span id="studentName">Loading...</span></span>
             </div>
-
             <div class="info-row">
               <span class="icon"><i class="fas fa-id-card"></i></span>
-              <span><strong>ID:</strong> <span id="studentId"></span></span>
+              <span><strong>ID:</strong> <span id="studentId">-</span></span>
             </div>
-
             <div class="info-row">
               <span class="icon"><i class="fas fa-book"></i></span>
-              <span><strong>Course:</strong> <span id="studentCourse"></span></span>
+              <span><strong>Course:</strong> <span id="studentCourse">-</span></span>
             </div>
-
             <div class="info-row">
               <span class="icon"><i class="fas fa-layer-group"></i></span>
-              <span><strong>Year:</strong> <span id="studentYear"></span></span>
+              <span><strong>Year:</strong> <span id="studentYear">-</span></span>
             </div>
-
             <div class="info-row">
               <span class="icon"><i class="fas fa-clock"></i></span>
-              <span><strong>Remaining Sessions:</strong> <span id="remainingSessions"></span></span>
+              <span><strong>Remaining Sessions:</strong> <span id="remainingSessions">0</span></span>
             </div>
-      </div>
-    </section>
+            <div class="info-row">
+              <span class="icon"><i class="fas fa-location-dot"></i></span>
+              <span><strong>Address:</strong> <span id="studentAddress">-</span></span>
+            </div>
+          </div>
+        </div>
+      </section>
 
-    <!-- ANNOUNCEMENTS -->
-   <section class="dashboard-box">
-    <div class="dashboard-header">
-      <h3><i class="fa-solid fa-bullhorn" style="margin-right: 8px;"></i>Announcements</h3>
+      <section class="dashboard-box announcement-box student-main-panel">
+        <div class="dashboard-header">
+          <h3><i class="fa-solid fa-bullhorn"></i> Announcements</h3>
+        </div>
+        <div class="dashboard-content">
+          <div class="student-announcements" id="studentAnnouncements">
+            <article class="announcement-card announcement-empty">Loading announcements...</article>
+          </div>
+        </div>
+      </section>
+
+      <section class="dashboard-box rules-box student-main-panel">
+        <div class="dashboard-header">
+          <h3><i class="fa-solid fa-clipboard-list"></i> Rules & Regulations</h3>
+        </div>
+        <div class="dashboard-content">
+          <p class="rules-kicker">Laboratory Rules</p>
+          <ol class="student-rules" id="studentRules">
+            <li class="announcement-empty">Loading rules...</li>
+          </ol>
+        </div>
+      </section>
+
     </div>
-
-    <div class="dashboard-content">
-      <ul class="list">
-        <li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</li>
-        <li>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</li>
-        <li>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</li>
-        <li>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</li>
-      </ul>
-    </div>
-</section>
-
-    <!-- RULES & REGULATIONS -->
-    <section class="dashboard-box">
-      <div class="dashboard-header">
-        <h3><i class="fa-solid fa-list-check" style="margin-right: 8px;"></i>Rules & Regulations</h3>
       </div>
-
-      <div class="dashboard-content">
-        <ul class="list">
-            <li>
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin nec felis eu lacus volutpat porta. 
-        Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.
-
-        <br><br>
-
-        Sed aliquam, nisi quis porttitor congue, elit erat euismod orci, ac placerat dolor lectus quis orci. 
-        Phasellus consectetuer vestibulum elit. Aenean tellus metus, bibendum sed, posuere ac, mattis non, nunc.
-
-        <br><br>
-
-        Praesent adipiscing. Phasellus ullamcorper ipsum rutrum nunc. Nunc nonummy metus. 
-        Vestibulum volutpat pretium libero. Cras id dui.
-      </li>
-
-      <li>
-        Nullam nulla eros, ultricies sit amet, nonummy id, imperdiet feugiat, pede. Sed lectus. 
-        Donec mollis hendrerit risus. Phasellus nec sem in justo pellentesque facilisis.
-
-        <br><br>
-
-        Etiam imperdiet imperdiet orci. Nunc nec neque. Phasellus leo dolor, tempus non, auctor et, hendrerit quis, nisi. 
-        Curabitur ligula sapien, tincidunt non, euismod vitae, posuere imperdiet, leo.
-
-        <br><br>
-
-        Maecenas malesuada. Praesent congue erat at massa. Sed cursus turpis vitae tortor. 
-        Donec posuere vulputate arcu. Phasellus accumsan cursus velit.
-      </li>
-         <li>
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin nec felis eu lacus volutpat porta. 
-        Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae.
-
-        <br><br>
-
-        Sed aliquam, nisi quis porttitor congue, elit erat euismod orci, ac placerat dolor lectus quis orci. 
-        Phasellus consectetuer vestibulum elit. Aenean tellus metus, bibendum sed, posuere ac, mattis non, nunc.
-
-        <br><br>
-
-        Praesent adipiscing. Phasellus ullamcorper ipsum rutrum nunc. Nunc nonummy metus. 
-        Vestibulum volutpat pretium libero. Cras id dui.
-      </li>
-
-      <li>
-        Nullam nulla eros, ultricies sit amet, nonummy id, imperdiet feugiat, pede. Sed lectus. 
-        Donec mollis hendrerit risus. Phasellus nec sem in justo pellentesque facilisis.
-
-        <br><br>
-
-        Etiam imperdiet imperdiet orci. Nunc nec neque. Phasellus leo dolor, tempus non, auctor et, hendrerit quis, nisi. 
-        Curabitur ligula sapien, tincidunt non, euismod vitae, posuere imperdiet, leo.
-
-        <br><br>
-
-        Maecenas malesuada. Praesent congue erat at massa. Sed cursus turpis vitae tortor. 
-        Donec posuere vulputate arcu. Phasellus accumsan cursus velit.
-      </li>
-           
-         </ul>
-        </ul>
-      </div>
-    </section>
-
+    </main>
   </div>
-</main>
 
-<script src="user.js" defer></script>
+  <div id="profileModal" class="modal">
+    <div class="modal-content profile-modal-content">
+      <span class="close" id="closeProfileModal">&times;</span>
+      <h3>Edit Profile</h3>
+      <div class="profile-modal-layout">
+        <div class="profile-upload-panel">
+          <img src="./img/empty-pic.jpg" alt="Profile Preview" id="profilePreview" class="profile-preview">
+          <input type="file" id="profilePhotoInput" accept="image/*">
+        </div>
+        <div class="profile-form-grid">
+          <div class="form-group">
+            <label>First Name</label>
+            <input type="text" id="editFirstName">
+          </div>
+          <div class="form-group">
+            <label>Last Name</label>
+            <input type="text" id="editLastName">
+          </div>
+          <div class="form-group">
+            <label>Middle Name</label>
+            <input type="text" id="editMiddleName">
+          </div>
+          <div class="form-group">
+            <label>Year Level</label>
+            <select id="editYearLevel">
+              <option value="">Select Year</option>
+              <option value="1st Year">1st Year</option>
+              <option value="2nd Year">2nd Year</option>
+              <option value="3rd Year">3rd Year</option>
+              <option value="4th Year">4th Year</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Course</label>
+            <select id="editCourse">
+              <option value="">Select Course</option>
+              <option value="BSIT">BSIT</option>
+              <option value="BSCS">BSCS</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="editEmail">
+          </div>
+          <div class="form-group full">
+            <label>Address</label>
+            <input type="text" id="editAddress">
+          </div>
+        </div>
+      </div>
+      <button type="button" id="saveProfileBtn">Save Profile</button>
+      <p id="profileMessage" class="muted-copy"></p>
+    </div>
+  </div>
+
+  <script src="user.js?v=profile-photo-fix" defer></script>
 </body>
 </html>

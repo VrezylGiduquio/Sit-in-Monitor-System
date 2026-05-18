@@ -35,7 +35,19 @@ router.post("/register", (req, res) => {
         console.error(err);
         return res.status(500).json({ message: "User already exists or error" });
       }
-      res.json({ message: "Registered successfully" });
+
+      db.run(
+        `INSERT INTO student_sessions (student_id, remaining_sessions) VALUES (?, 30)`,
+        [student_id],
+        (sessionErr) => {
+          if (sessionErr) {
+            console.error(sessionErr);
+            return res.status(500).json({ message: "Registered but failed to initialize sessions" });
+          }
+
+          res.json({ message: "Registered successfully" });
+        }
+      );
     }
   );
 });

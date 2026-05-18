@@ -8,55 +8,60 @@
 </head>
 
 <body>
+  <div class="app-shell">
+    <aside class="sidebar sidebar-admin">
+      <div class="sidebar-brand">
+        <p class="sidebar-kicker">CCS Sit-in</p>
+        <h2>Admin Panel</h2>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="sidebar-link" onclick="goTo('home')"><i class="fa-solid fa-house"></i><span>Dashboard</span></button>
+        <button class="sidebar-link" onclick="goTo('students')"><i class="fa-solid fa-users"></i><span>Students</span></button>
+        <button class="sidebar-link" onclick="goTo('sitin')"><i class="fa-solid fa-calendar-check"></i><span>Reservations</span></button>
+        <button class="sidebar-link active" onclick="goTo('view-records')"><i class="fa-solid fa-file-lines"></i><span>View Records</span></button>
+        <button class="sidebar-link" onclick="goTo('reports')"><i class="fa-solid fa-file-export"></i><span>Reports</span></button>
+        <button class="sidebar-link" onclick="goTo('leaderboard')"><i class="fa-solid fa-trophy"></i><span>Leaderboard</span></button>
+        <button class="sidebar-link" onclick="goTo('analytics')"><i class="fa-solid fa-chart-pie"></i><span>Analytics</span></button>
+        <button class="sidebar-link" onclick="goTo('software')"><i class="fa-solid fa-upload"></i><span>Software</span></button>
+        <button class="sidebar-link" onclick="goTo('ai-recommendation')"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI Recommendation</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-logout" onclick="logout()">Logout</button>
+      </div>
+    </aside>
 
-<header>
-  <div class="nav-left">
-    <h2>CCS Admin Panel</h2>
-  </div>
-
-  <nav class="nav-links">
-     <button onclick="goTo('home')">Home</button>
-    <button onclick="goTo('search')">Search</button>
-    <button onclick="goTo('students')">Students</button>
-    <button onclick="goTo('sitin')">Sit-in</button>
-    <button onclick="goTo('view-records')">View Sit-in Records</button>
-    <button onclick="goTo('reports')">Sit-in Reports</button>
-    <button onclick="goTo('feedback')">Feedback Reports</button>
-    <button onclick="goTo('reservation')">Reservation</button>
-  </nav>
-
-  <div class="nav-right">
-    <button onclick="logout()">Logout</button>
-  </div>
-</header>
-
-<main>
-  <div class="dashboard-container">
-
-    <section class="dashboard-box">
-      <div class="dashboard-header">
-        <h3><i class="fa-solid fa-clock-rotate-left"></i> Sit-in Records (History)</h3>
+    <main class="app-content">
+      <div class="content-topbar">
+        <div>
+          <p class="content-kicker">Records</p>
+          <h1 class="content-title">Sit-in History</h1>
+        </div>
       </div>
 
-      <div class="dashboard-content">
-        <table>
-          <thead>
-            <tr>
-              <th>Student ID</th>
-              <th>Purpose</th>
-              <th>Room</th>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="recordsTable"></tbody>
-        </table>
+      <div class="dashboard-main">
+        <section class="dashboard-box">
+          <div class="dashboard-header">
+            <h3><i class="fa-solid fa-clock-rotate-left"></i> Sit-in Records</h3>
+          </div>
+          <div class="dashboard-content">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student ID</th>
+                  <th>Purpose</th>
+                  <th>Room</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="recordsTable"></tbody>
+            </table>
+          </div>
+        </section>
       </div>
-    </section>
-
+    </main>
   </div>
-</main>
 
 <script src="view-records.js"></script>
 

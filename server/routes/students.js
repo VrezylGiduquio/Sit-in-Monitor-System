@@ -34,7 +34,9 @@ router.get("/me", verifyToken, (req, res) => {
        u.middle_name,
        u.course_level AS year_level,
        u.course,
-       u.email
+       u.email,
+       u.address,
+       u.profile_photo
      FROM users u
      WHERE u.id = ?`,
     [userId],
@@ -56,6 +58,62 @@ router.get("/me", verifyToken, (req, res) => {
           student.remaining_sessions = totalSessions - usedSessions;
 
           res.json(student);
+        }
+      );
+    }
+  );
+});
+
+router.put("/me", verifyToken, (req, res) => {
+  const userId = req.user.id;
+  const {
+    first_name,
+    last_name,
+    middle_name,
+    course_level,
+    course,
+    email,
+    address,
+    profile_photo
+  } = req.body;
+
+  if (!first_name || !last_name || !course_level || !course || !email) {
+    return res.status(400).json({ success: false, message: "Required fields missing" });
+  }
+
+  db.get(
+    `SELECT id FROM users WHERE email = ? AND id != ?`,
+    [email, userId],
+    (emailErr, existingUser) => {
+      if (emailErr) {
+        return res.status(500).json({ success: false, message: "Database error" });
+      }
+
+      if (existingUser) {
+        return res.status(400).json({ success: false, message: "Email is already in use" });
+      }
+
+      db.run(
+        `UPDATE users
+         SET first_name = ?, last_name = ?, middle_name = ?, course_level = ?, course = ?, email = ?, address = ?, profile_photo = ?
+         WHERE id = ?`,
+        [
+          first_name,
+          last_name,
+          middle_name || "",
+          course_level,
+          course,
+          email,
+          address || "",
+          profile_photo || "",
+          userId
+        ],
+        function (updateErr) {
+          if (updateErr) {
+            return res.status(500).json({ success: false, message: "Failed to update profile" });
+          }
+
+          res.json({ success: true, updated: this.changes });
         }
       );
     }

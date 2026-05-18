@@ -14,6 +14,8 @@ async function login() {
 
   if (data.token) {
     localStorage.setItem("userToken", data.token);
+    localStorage.setItem("userStudentId", student_id.value.trim());
+    localStorage.setItem("student_id", student_id.value.trim());
     window.location.href = "user.html";
   } else {
     alert("Login failed");

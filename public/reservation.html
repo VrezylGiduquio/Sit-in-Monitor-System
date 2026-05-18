@@ -2,62 +2,67 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student Dashboard</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-
-<header>
-  <div class="nav-left">
-    <h2>CCS Sit-in Monitoring System Student Dashboard</h2>
-  </div>
-
-  <nav id="navLinks" class="nav-links"></nav>
-
-  <div class="nav-right">
-    <button onclick="logout()">Logout</button>
-  </div>
-</header>
-
-<main>
-  <div class="dashboard-container">
-
-    <!-- STUDENT INFORMATION CARD (your existing code) -->
-    <section class="dashboard-box">
-    <div class="dashboard-header">
-      <h3><i class="fa-solid fa-clock-rotate-left"></i> My Sit-in History</h3>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <p class="sidebar-kicker">CCS Sit-in</p>
+      <h2>Student Panel</h2>
     </div>
-
-    <div class="dashboard-content">
-      <table>
-        <thead>
-          <tr>
-            <th>Purpose</th>
-            <th>Room</th>
-            <th>Date</th>
-            <th>Time</th>
-          </tr>
-        </thead>
-        <tbody id="historyTable"></tbody>
-      </table>
+    <nav class="sidebar-nav">
+      <button class="sidebar-link" onclick="window.location.href='user.html'"><i class="fa-solid fa-house"></i><span>Dashboard</span></button>
+      <button class="sidebar-link active" onclick="window.location.href='reservation.html'"><i class="fa-solid fa-calendar-check"></i><span>Reservations</span></button>
+      <button class="sidebar-link" onclick="window.location.href='sessions.html'"><i class="fa-solid fa-table-list"></i><span>My Sessions</span></button>
+      <button class="sidebar-link" onclick="window.location.href='software-lab.html'"><i class="fa-solid fa-desktop"></i><span>Software / Lab</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sidebar-logout" onclick="logout()">Logout</button>
     </div>
-  </section>
+  </aside>
 
-    <!-- RESERVE SIT-IN BUTTON -->
-    <section class="dashboard-box">
-      <div class="dashboard-header">
-        <h3>Reserve a Sit-in</h3>
+  <main class="app-content">
+    <div class="content-topbar">
+      <div>
+        <p class="content-kicker">Student Workspace</p>
+        <h1 class="content-title">Reservations</h1>
       </div>
-      <div class="dashboard-content">
-        <button onclick="openModal()">Reserve Sit-in</button>
+    </div>
+
+    <div class="dashboard-main">
+      <section class="hero-panel compact-hero">
+        <div>
+          <p class="eyebrow">Reservation Center</p>
+          <h1>View history and submit new sit-in requests</h1>
+          <p class="hero-copy">Track your past visits and reservation status before booking another lab session.</p>
+        </div>
+      </section>
+
+  <div class="dashboard-grid reservation-grid">
+
+    <section class="dashboard-box reservation-action-card">
+      <div class="dashboard-header">
+        <h3><i class="fa-solid fa-calendar-plus"></i> Reserve a Sit-in</h3>
+      </div>
+      <div class="dashboard-content reservation-action-content">
+        <div class="reservation-action-copy">
+          <span id="reservationStatusBadge" class="reservation-status-badge enabled">Reservation Open</span>
+          <h2>Book your next lab session</h2>
+          <p id="reservationStatusText">Submit a sit-in request for software work, project tasks, or laboratory activities.</p>
+        </div>
+        <div class="reservation-action-footer">
+          <button id="reserveSitInButton" onclick="openModal()">Reserve Sit-in</button>
+        </div>
       </div>
     </section>
 
-    <!-- RESERVATIONS TABLE -->
-    <section class="dashboard-box">
+    <section class="dashboard-box reservation-current-card">
       <div class="dashboard-header">
-        <h3>My Reservations</h3>
+        <h3><i class="fa-solid fa-list-check"></i> My Reservations</h3>
       </div>
       <div class="dashboard-content">
         <table>
@@ -70,13 +75,35 @@
               <th>Status</th>
             </tr>
           </thead>
-          <tbody id="reservationTable"></tbody> <!-- ✅ Table will be populated by JS -->
+          <tbody id="reservationTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="dashboard-box reservation-history-card">
+      <div class="dashboard-header">
+        <h3><i class="fa-solid fa-clock-rotate-left"></i> My Sit-in History</h3>
+      </div>
+
+      <div class="dashboard-content">
+        <table>
+          <thead>
+            <tr>
+              <th>Purpose</th>
+              <th>Room</th>
+              <th>Date</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="historyTable"></tbody>
         </table>
       </div>
     </section>
 
   </div>
-</main>
+    </div>
+  </main>
+</div>
 
 <!-- RESERVATION MODAL -->
 <div id="reservationModal" class="modal">
