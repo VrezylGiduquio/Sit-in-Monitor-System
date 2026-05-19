@@ -1016,19 +1016,117 @@ th,
   color: #92400e;
 }
 
-.leaderboard-panel {
-  display: flex;
-  flex-direction: column;
+.leaderboard-page {
   gap: 18px;
 }
 
-.leaderboard-main {
+.leaderboard-overview,
+.leaderboard-panel-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
+}
+
+.leaderboard-overview {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(520px, 1.6fr);
+  gap: 22px;
+  align-items: stretch;
+  padding: 22px;
+}
+
+.leaderboard-intro {
   display: flex;
-  gap: 16px;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.leaderboard-intro h2 {
+  color: #0f172a;
+  font-size: 28px;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.leaderboard-intro p {
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.leaderboard-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summary-card {
+  padding: 16px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 96px;
+}
+
+.summary-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+}
+
+.summary-card strong {
+  font-size: 28px;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.summary-card small {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.leaderboard-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.58fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.leaderboard-panel-card {
   padding: 18px;
-  background: linear-gradient(135deg, #eff6ff, #dbeafe);
-  border-radius: 18px;
+}
+
+.leaderboard-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.leaderboard-section-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #0f172a;
+  font-size: 18px;
+  margin: 0;
+}
+
+.leaderboard-section-heading p {
+  color: #64748b;
+  font-size: 14px;
+  margin: 4px 0 0;
 }
 
 .leaderboard-rank {
@@ -1042,6 +1140,213 @@ th,
   color: white;
   font-weight: 700;
   font-size: 22px;
+}
+
+.leaderboard-podium {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.leaderboard-podium-card {
+  padding: 16px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 132px;
+}
+
+.leaderboard-podium-card.place-1 {
+  border-color: #eab308;
+  background: linear-gradient(180deg, #fffdf2, #ffffff);
+}
+
+.leaderboard-podium-card.place-2 {
+  border-color: #cbd5e1;
+  background: linear-gradient(180deg, #f8fafc, #ffffff);
+}
+
+.leaderboard-podium-card.place-3 {
+  border-color: #d97706;
+  background: linear-gradient(180deg, #fff7ed, #ffffff);
+}
+
+.leaderboard-podium-card.empty {
+  grid-column: 1 / -1;
+}
+
+.podium-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.podium-position {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.podium-position.medal-1,
+.leaderboard-table-rank.medal-1 {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.podium-position.medal-2,
+.leaderboard-table-rank.medal-2 {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.podium-position.medal-3,
+.leaderboard-table-rank.medal-3 {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.podium-hours {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.leaderboard-podium-card strong {
+  font-size: 18px;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.leaderboard-podium-card p {
+  margin: 0;
+  color: #64748b;
+}
+
+.podium-metrics {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  color: #334155;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.leaderboard-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 760px;
+}
+
+.leaderboard-table thead th {
+  padding: 13px 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: left;
+}
+
+.leaderboard-table tbody td {
+  padding: 14px 12px;
+  border-top: 1px solid #eef2f7;
+  color: #0f172a;
+}
+
+.leaderboard-table tbody tr:hover {
+  background: #fafcff;
+}
+
+.leaderboard-table tbody tr.current-student-row {
+  background: #eff6ff;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.leaderboard-table tbody tr.current-student-row:hover {
+  background: #dbeafe;
+}
+
+.leaderboard-name-cell strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.current-student-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.leaderboard-table-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 700;
+}
+
+@media (max-width: 1180px) {
+  .leaderboard-overview,
+  .leaderboard-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboard-podium {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .leaderboard-overview,
+  .leaderboard-panel-card {
+    padding: 16px;
+  }
+
+  .leaderboard-intro h2 {
+    font-size: 22px;
+  }
+
+  .leaderboard-summary-grid,
+  .leaderboard-podium {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-card {
+    min-height: 82px;
+  }
 }
 
 .mini-leaderboard {
@@ -1309,7 +1614,9 @@ th,
   .student-rules,
   .shortcut-grid,
   .stats-grid,
-  .usage-snapshot {
+  .usage-snapshot,
+  .leaderboard-summary-grid,
+  .leaderboard-podium {
     grid-template-columns: 1fr;
   }
 

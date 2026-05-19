@@ -15,6 +15,8 @@ const DEFAULT_STATS = {
   longestSession: "0 mins"
 };
 
+localStorage.setItem("activeRole", "student");
+
 if (!token) {
   window.location.href = "login-user.html";
 }
@@ -77,6 +79,7 @@ function renderNav() {
     <button class="sidebar-link" onclick="window.location.href='reservation.html'"><i class="fa-solid fa-calendar-check"></i><span>Reservations</span></button>
     <button class="sidebar-link" onclick="window.location.href='sessions.html'"><i class="fa-solid fa-table-list"></i><span>My Sessions</span></button>
     <button class="sidebar-link" onclick="window.location.href='software-lab.html'"><i class="fa-solid fa-desktop"></i><span>Software / Lab</span></button>
+    <button class="sidebar-link" onclick="window.location.href='leaderboard.html?role=student'"><i class="fa-solid fa-trophy"></i><span>Leaderboard</span></button>
   `;
 }
 

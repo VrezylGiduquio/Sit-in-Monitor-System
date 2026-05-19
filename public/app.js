@@ -3,6 +3,8 @@ const token = localStorage.getItem("token");
 const table = document.getElementById("table");
 const searchInput = document.getElementById("searchInput");
 
+localStorage.setItem("activeRole", "admin");
+
 //  Redirect if not logged in
 if (!token) {
   window.location.href = "login.html";
@@ -15,8 +17,10 @@ function logout() {
 }
 
 function goTo(url) {
+    localStorage.setItem("activeRole", "admin");
     // Navigate to the page
     if(url == "home"){ window.location.href = "admin.html";}
+    else if(url == "leaderboard"){ window.location.href = "leaderboard.html?role=admin";}
     else{ window.location.href = url + ".html";}
 }
 

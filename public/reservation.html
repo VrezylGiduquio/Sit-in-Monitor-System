@@ -19,6 +19,7 @@
       <button class="sidebar-link active" onclick="window.location.href='reservation.html'"><i class="fa-solid fa-calendar-check"></i><span>Reservations</span></button>
       <button class="sidebar-link" onclick="window.location.href='sessions.html'"><i class="fa-solid fa-table-list"></i><span>My Sessions</span></button>
       <button class="sidebar-link" onclick="window.location.href='software-lab.html'"><i class="fa-solid fa-desktop"></i><span>Software / Lab</span></button>
+      <button class="sidebar-link" onclick="window.location.href='leaderboard.html?role=student'"><i class="fa-solid fa-trophy"></i><span>Leaderboard</span></button>
     </nav>
     <div class="sidebar-footer">
       <button class="sidebar-logout" onclick="logout()">Logout</button>
@@ -38,7 +39,7 @@
         <div>
           <p class="eyebrow">Reservation Center</p>
           <h1>View history and submit new sit-in requests</h1>
-          <p class="hero-copy">Track your past visits and reservation status before booking another lab session.</p>
+          <p class="hero-copy">Choose a Monday to Friday date, then pick one of the fixed time slots automatically shown for that day.</p>
         </div>
       </section>
 
@@ -111,7 +112,14 @@
     <span class="close" onclick="closeModal()">&times;</span>
     <h3>Reserve Sit-in</h3>
 
-    <input type="text" id="purpose" placeholder="Enter subject">
+    <select id="purpose">
+      <option value="">Select Purpose</option>
+      <option value="Research">Research</option>
+      <option value="Project Development">Project Development</option>
+      <option value="Assignment / Lab Activity">Assignment / Lab Activity</option>
+      <option value="Thesis / Capstone">Thesis / Capstone</option>
+      <option value="Programming Practice">Programming Practice</option>
+    </select>
 
     <select id="room">
       <option value="">Select Room</option>
@@ -123,9 +131,19 @@
       <option value="544">544</option>
     </select>
 
-    <input type="date" id="date">
-    <input type="time" id="start_time">
-    <input type="time" id="end_time">
+    <input type="date" id="date" min="">
+
+    <select id="time_period">
+      <option value="">Select Session</option>
+      <option value="morning">Morning</option>
+      <option value="afternoon">Afternoon</option>
+    </select>
+
+    <select id="start_time">
+      <option value="">Select room, date, and session first</option>
+    </select>
+
+    <input type="time" id="end_time" readonly>
 
     <button onclick="submitReservation()">Submit</button>
     <p id="modalMessage"></p>

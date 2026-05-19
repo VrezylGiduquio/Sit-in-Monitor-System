@@ -4,6 +4,7 @@ const db = require("../db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { SECRET } = require("../config/jwt");
+const { emitLeaderboardChanged } = require("../realtime");
 
 // REGISTER
 router.post("/register", (req, res) => {
@@ -45,6 +46,7 @@ router.post("/register", (req, res) => {
             return res.status(500).json({ message: "Registered but failed to initialize sessions" });
           }
 
+          emitLeaderboardChanged("student-registered");
           res.json({ message: "Registered successfully" });
         }
       );

@@ -5,11 +5,27 @@ const historyTable = document.getElementById("historyTable");
 const reservationStatusBadge = document.getElementById("reservationStatusBadge");
 const reservationStatusText = document.getElementById("reservationStatusText");
 const reserveSitInButton = document.getElementById("reserveSitInButton");
+const purposeField = document.getElementById("purpose");
+const roomField = document.getElementById("room");
+const dateField = document.getElementById("date");
+const timePeriodField = document.getElementById("time_period");
+const startTimeField = document.getElementById("start_time");
+const endTimeField = document.getElementById("end_time");
 
 const token = localStorage.getItem("userToken");
 let studentId = localStorage.getItem("userStudentId") || localStorage.getItem("student_id") || "";
 let reservationEnabled = true;
 let reservationsCache = [];
+let scheduleSlotsCache = [];
+const purposeRoomMap = {
+  Research: ["524", "526"],
+  "Project Development": ["526", "530", "544"],
+  "Assignment / Lab Activity": ["524", "528", "530"],
+  "Thesis / Capstone": ["542", "544"],
+  "Programming Practice": ["526", "528", "542"]
+};
+
+localStorage.setItem("activeRole", "student");
 
 if (!token) {
   window.location.href = "login-user.html";
@@ -90,6 +106,154 @@ async function loadReservationSetting() {
   }
 }
 
+async function loadScheduleSlots() {
+  const purpose = purposeField?.value;
+  const room = roomField?.value;
+  const date = dateField?.value;
+
+  if (!startTimeField) return;
+
+  startTimeField.innerHTML = `<option value="">${date ? "Loading schedule..." : "Select date first"}</option>`;
+  if (endTimeField) endTimeField.value = "";
+  scheduleSlotsCache = [];
+  modalMessage.innerText = "";
+
+  if (!purpose || !room || !date) {
+    startTimeField.innerHTML = `<option value="">Select purpose, room, and date first</option>`;
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({ purpose, room, date });
+    const res = await fetch(`/api/reservations/schedule?${params.toString()}`);
+    const data = await res.json();
+
+    if (!data.success) {
+      startTimeField.innerHTML = `<option value="">${data.message || "No schedule available"}</option>`;
+      modalMessage.style.color = "red";
+      modalMessage.innerText = data.message || "No schedule available.";
+      return;
+    }
+
+    if (!Array.isArray(data.slots) || !data.slots.length) {
+      startTimeField.innerHTML = `<option value="">${data.message || "No schedule available"}</option>`;
+      modalMessage.style.color = "red";
+      modalMessage.innerText = data.message || "No schedule available for the selected date.";
+      return;
+    }
+
+    modalMessage.innerText = "";
+    scheduleSlotsCache = data.slots;
+    renderScheduleOptions();
+  } catch (err) {
+    console.error("Error loading schedule:", err);
+    startTimeField.innerHTML = `<option value="">Unable to load schedule</option>`;
+    modalMessage.style.color = "red";
+    modalMessage.innerText = "Unable to load schedule.";
+  }
+}
+
+function getSlotPeriod(startTime) {
+  const [hours] = String(startTime || "").split(":").map(Number);
+  if (Number.isNaN(hours)) return "";
+  return hours < 12 ? "morning" : "afternoon";
+}
+
+function renderScheduleOptions() {
+  if (!startTimeField) return;
+
+  const selectedPeriod = timePeriodField?.value || "";
+  if (!selectedPeriod) {
+    startTimeField.innerHTML = `<option value="">Select morning or afternoon first</option>`;
+    if (endTimeField) endTimeField.value = "";
+    return;
+  }
+
+  const filteredSlots = scheduleSlotsCache.filter((slot) => getSlotPeriod(slot.start_time) === selectedPeriod);
+  if (!filteredSlots.length) {
+    startTimeField.innerHTML = `<option value="">No ${selectedPeriod} schedule available</option>`;
+    if (endTimeField) endTimeField.value = "";
+    return;
+  }
+
+  startTimeField.innerHTML = [
+    `<option value="">Select ${selectedPeriod} time</option>`,
+    ...filteredSlots.map((slot) => `<option value="${slot.start_time}" data-end-time="${slot.end_time}">${slot.label}</option>`)
+  ].join("");
+
+  if (endTimeField) endTimeField.value = "";
+}
+
+function getSelectedPeriodSlots() {
+  const selectedPeriod = timePeriodField?.value || "";
+  if (!selectedPeriod) return [];
+  return scheduleSlotsCache.filter((slot) => getSlotPeriod(slot.start_time) === selectedPeriod);
+}
+
+function showSelectedPeriodSchedule() {
+  const selectedPeriod = timePeriodField?.value || "";
+
+  if (!selectedPeriod) return;
+
+  if (!roomField?.value || !dateField?.value) {
+    alert("Please select a room and date first.");
+    return;
+  }
+
+  const filteredSlots = getSelectedPeriodSlots();
+  if (!filteredSlots.length) {
+    alert(`No ${selectedPeriod} schedule available for the selected room and date.`);
+    return;
+  }
+
+  const scheduleLines = filteredSlots.map(
+    (slot) => `${slot.start_time} - ${slot.end_time}`
+  );
+
+  alert(
+    `${selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)} schedule:\n${scheduleLines.join("\n")}`
+  );
+}
+
+function applySelectedSchedule() {
+  const selectedOption = startTimeField?.selectedOptions?.[0];
+  const endTime = selectedOption?.dataset?.endTime || "";
+  if (endTimeField) {
+    endTimeField.value = endTime;
+  }
+}
+
+function setMinimumReservationDate() {
+  if (!dateField) return;
+
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  dateField.min = `${year}-${month}-${day}`;
+}
+
+function resetScheduleSelection(message = "Select room, date, and session first") {
+  if (timePeriodField) timePeriodField.value = "";
+  if (startTimeField) startTimeField.innerHTML = `<option value="">${message}</option>`;
+  if (endTimeField) endTimeField.value = "";
+  scheduleSlotsCache = [];
+}
+
+function updateRoomOptions() {
+  if (!roomField) return;
+
+  const selectedPurpose = purposeField?.value || "";
+  const allowedRooms = purposeRoomMap[selectedPurpose] || [];
+
+  roomField.innerHTML = [
+    `<option value="">${selectedPurpose ? "Select Recommended Room" : "Select Purpose First"}</option>`,
+    ...allowedRooms.map((room) => `<option value="${room}">Lab ${room}</option>`)
+  ].join("");
+
+  resetScheduleSelection();
+}
+
 // Open/close modal
 function openModal() {
   const hasActiveReservation = reservationsCache.some((reservation) =>
@@ -109,16 +273,16 @@ function openModal() {
   }
 
   modal.style.display = "block";
+  loadScheduleSlots();
 }
 
 function closeModal() {
   modal.style.display = "none";
   modalMessage.innerText = "";
-  document.getElementById("purpose").value = "";
-  document.getElementById("room").value = "";
-  document.getElementById("date").value = "";
-  document.getElementById("start_time").value = "";
-  document.getElementById("end_time").value = "";
+  if (purposeField) purposeField.value = "";
+  updateRoomOptions();
+  if (dateField) dateField.value = "";
+  resetScheduleSelection();
 }
 
 // Load reservations
@@ -163,11 +327,11 @@ async function loadReservations() {
 // Submit new reservation
 async function submitReservation() {
   const currentStudentId = await loadCurrentStudent();
-  const purpose = document.getElementById("purpose").value;
-  const room = document.getElementById("room").value;
-  const date = document.getElementById("date").value;
-  const start_time = document.getElementById("start_time").value;
-  const end_time = document.getElementById("end_time").value;
+  const purpose = purposeField.value.trim();
+  const room = roomField.value;
+  const date = dateField.value;
+  const start_time = startTimeField.value;
+  const end_time = endTimeField.value;
   const hasActiveReservation = reservationsCache.some((reservation) =>
     ["pending", "approved", "ongoing"].includes(String(reservation.status || "").toLowerCase())
   );
@@ -193,12 +357,6 @@ async function submitReservation() {
   if (hasActiveReservation) {
     modalMessage.style.color = "red";
     modalMessage.innerText = "You already have an active reservation.";
-    return;
-  }
-
-  if (start_time >= end_time) {
-    modalMessage.style.color = "red";
-    modalMessage.innerText = "End time must be later than start time.";
     return;
   }
 
@@ -289,6 +447,16 @@ window.onclick = (event) => {
 
 // Load reservations on page load
 document.addEventListener("DOMContentLoaded", () => {
+  setMinimumReservationDate();
+  updateRoomOptions();
+  purposeField?.addEventListener("change", updateRoomOptions);
+  roomField?.addEventListener("change", loadScheduleSlots);
+  dateField?.addEventListener("change", loadScheduleSlots);
+  timePeriodField?.addEventListener("change", () => {
+    renderScheduleOptions();
+    showSelectedPeriodSchedule();
+  });
+  startTimeField?.addEventListener("change", applySelectedSchedule);
   loadReservationSetting();
   loadCurrentStudent().then(() => {
     loadReservations();

@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const verifyToken = require("../middleware/auth");
+const jwt = require("jsonwebtoken");
+const { SECRET } = require("../config/jwt");
+const { addLeaderboardClient } = require("../realtime");
 
 function formatDuration(totalMinutes) {
   if (!totalMinutes || totalMinutes <= 0) return "0 mins";
@@ -24,6 +27,64 @@ function getMinutesExpression() {
       ELSE 0
     END
   `;
+}
+
+function buildLeaderboardMetrics(rows = []) {
+  const normalizedRows = rows.map((row, index) => {
+    const totalMinutes = Number(row.total_minutes || 0);
+    const sessions = Number(row.sessions || 0);
+
+    return {
+      rank: index + 1,
+      studentId: row.student_id,
+      name: row.name || row.student_id,
+      sessions,
+      totalMinutes,
+      totalHoursLabel: `${(totalMinutes / 60).toFixed(1).replace(".0", "")}h`,
+      averageHoursLabel: sessions
+        ? `${(totalMinutes / sessions / 60).toFixed(1).replace(".0", "")}h`
+        : "0h"
+    };
+  });
+
+  const totalMinutes = normalizedRows.reduce((sum, row) => sum + row.totalMinutes, 0);
+  const totalSessions = normalizedRows.reduce((sum, row) => sum + row.sessions, 0);
+
+  return {
+    rows: normalizedRows,
+    summary: {
+      rankedStudents: normalizedRows.length,
+      totalHoursLabel: `${(totalMinutes / 60).toFixed(1).replace(".0", "")}h`,
+      totalSessions,
+      averageHoursLabel: normalizedRows.length
+        ? `${(totalMinutes / normalizedRows.length / 60).toFixed(1).replace(".0", "")}h`
+        : "0h"
+    }
+  };
+}
+
+function loadLeaderboard(callback, limit = null) {
+  const minutesExpr = getMinutesExpression();
+  const limitClause = Number.isInteger(limit) && limit > 0 ? `LIMIT ${limit}` : "";
+
+  db.all(
+    `
+    SELECT
+      u.student_id,
+      TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS name,
+      COALESCE(SUM(${minutesExpr}), 0) AS total_minutes,
+      COUNT(r.id) AS sessions
+    FROM users u
+    LEFT JOIN reservations r
+      ON r.student_id = u.student_id
+     AND r.status = 'terminated'
+    GROUP BY u.student_id, u.first_name, u.last_name
+    ORDER BY total_minutes DESC, sessions DESC, u.student_id ASC
+    ${limitClause}
+    `,
+    [],
+    callback
+  );
 }
 
 function listAnnouncements(callback) {
@@ -74,23 +135,7 @@ router.get("/dashboard", verifyToken, (req, res) => {
             return res.status(500).json({ success: false, message: "Failed to load student count" });
           }
 
-          db.all(
-            `
-            SELECT
-              u.student_id,
-              TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS name,
-              COALESCE(SUM(${minutesExpr}), 0) AS total_minutes,
-              COUNT(r.id) AS sessions
-            FROM users u
-            LEFT JOIN reservations r
-              ON r.student_id = u.student_id
-             AND r.status = 'terminated'
-            GROUP BY u.student_id, u.first_name, u.last_name
-            ORDER BY total_minutes DESC, sessions DESC, u.student_id ASC
-            LIMIT 5
-            `,
-            [],
-            (leaderboardErr, leaderboardRows) => {
+          loadLeaderboard((leaderboardErr, leaderboardRows) => {
               if (leaderboardErr) {
                 return res.status(500).json({ success: false, message: "Failed to load leaderboard" });
               }
@@ -156,14 +201,7 @@ router.get("/dashboard", verifyToken, (req, res) => {
                           completedSessions: completedCount,
                           totalStudents
                         },
-                        leaderboard: leaderboardRows.map((row, index) => ({
-                          rank: index + 1,
-                          studentId: row.student_id,
-                          name: row.name || row.student_id,
-                          sessions: Number(row.sessions || 0),
-                          totalMinutes: Number(row.total_minutes || 0),
-                          totalHoursLabel: `${(Number(row.total_minutes || 0) / 60).toFixed(1).replace(".0", "")}h`
-                        })),
+                        leaderboard: buildLeaderboardMetrics(leaderboardRows).rows,
                         analytics: {
                           topRooms: roomRows.map((row) => ({
                             room: row.room,
@@ -181,11 +219,47 @@ router.get("/dashboard", verifyToken, (req, res) => {
                   );
                 }
               );
-            }
-          );
+            }, 5);
         });
       }
     );
+  });
+});
+
+router.get("/leaderboard", verifyToken, (req, res) => {
+  loadLeaderboard((err, rows) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: "Failed to load leaderboard" });
+    }
+
+    const leaderboard = buildLeaderboardMetrics(rows);
+
+    res.json({
+      success: true,
+      summary: leaderboard.summary,
+      podium: leaderboard.rows.slice(0, 3),
+      leaderboard: leaderboard.rows
+    });
+  });
+});
+
+router.get("/leaderboard/events", (req, res) => {
+  const token = String(req.query.token || "");
+
+  jwt.verify(token, SECRET, (err) => {
+    if (err) {
+      return res.status(403).json({ success: false, message: "Invalid token" });
+    }
+
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive"
+    });
+
+    res.write("event: connected\n");
+    res.write(`data: ${JSON.stringify({ timestamp: Date.now() })}\n\n`);
+    addLeaderboardClient(res);
   });
 });
 

@@ -1,9 +1,12 @@
 const table = document.getElementById("recordsTable");
 
+localStorage.setItem("activeRole", "admin");
 
 function goTo(url) {
+    localStorage.setItem("activeRole", "admin");
     // Navigate to the page
     if(url == "home"){ window.location.href = "admin.html";}
+    else if(url == "leaderboard"){ window.location.href = "leaderboard.html?role=admin";}
     else{ window.location.href = url + ".html";}
 }
 

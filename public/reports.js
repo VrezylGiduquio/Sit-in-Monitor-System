@@ -1,9 +1,17 @@
 const reportsTable = document.getElementById("reportsTable");
 let reportRows = [];
 
+localStorage.setItem("activeRole", "admin");
+
 function goTo(url) {
+  localStorage.setItem("activeRole", "admin");
+
   if (url === "home") {
     window.location.href = "admin.html";
+    return;
+  }
+  if (url === "leaderboard") {
+    window.location.href = "leaderboard.html?role=admin";
     return;
   }
   window.location.href = `${url}.html`;

@@ -1,6 +1,8 @@
 const token = localStorage.getItem("token");
 let adminRefreshTimer;
 
+localStorage.setItem("activeRole", "admin");
+
 if (!token) {
   window.location.href = "login.html";
 }
@@ -11,8 +13,15 @@ function logout() {
 }
 
 function goTo(page) {
+  localStorage.setItem("activeRole", "admin");
+
   if (page === "home") {
     window.location.href = "admin.html";
+    return;
+  }
+
+  if (page === "leaderboard") {
+    window.location.href = "leaderboard.html?role=admin";
     return;
   }
 

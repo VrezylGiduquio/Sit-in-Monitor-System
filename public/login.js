@@ -14,9 +14,9 @@ async function login() {
 
   if (data.token) {
     localStorage.setItem("token", data.token);
+    localStorage.setItem("activeRole", "admin");
     window.location.href = "admin.html";
   } else {
     alert("Login failed");
   }
 }
-

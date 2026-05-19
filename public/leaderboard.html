@@ -9,22 +9,12 @@
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar sidebar-admin">
+    <aside id="leaderboardSidebar" class="sidebar sidebar-admin">
       <div class="sidebar-brand">
         <p class="sidebar-kicker">CCS Sit-in</p>
-        <h2>Admin Panel</h2>
+        <h2 id="panelTitle">Admin Panel</h2>
       </div>
-      <nav class="sidebar-nav">
-        <button class="sidebar-link" onclick="goTo('home')"><i class="fa-solid fa-house"></i><span>Dashboard</span></button>
-        <button class="sidebar-link" onclick="goTo('students')"><i class="fa-solid fa-users"></i><span>Students</span></button>
-        <button class="sidebar-link" onclick="goTo('sitin')"><i class="fa-solid fa-calendar-check"></i><span>Reservations</span></button>
-        <button class="sidebar-link" onclick="goTo('view-records')"><i class="fa-solid fa-file-lines"></i><span>View Records</span></button>
-        <button class="sidebar-link" onclick="goTo('reports')"><i class="fa-solid fa-file-export"></i><span>Reports</span></button>
-        <button class="sidebar-link active" onclick="goTo('leaderboard')"><i class="fa-solid fa-trophy"></i><span>Leaderboard</span></button>
-        <button class="sidebar-link" onclick="goTo('analytics')"><i class="fa-solid fa-chart-pie"></i><span>Analytics</span></button>
-        <button class="sidebar-link" onclick="goTo('software')"><i class="fa-solid fa-upload"></i><span>Software</span></button>
-        <button class="sidebar-link" onclick="goTo('ai-recommendation')"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI Recommendation</span></button>
-      </nav>
+      <nav id="leaderboardNav" class="sidebar-nav"></nav>
       <div class="sidebar-footer">
         <button class="sidebar-logout" onclick="logout()">Logout</button>
       </div>
@@ -32,24 +22,81 @@
 
     <main class="app-content">
       <div class="content-topbar">
-        <p class="content-kicker">Administrator</p>
+        <p id="leaderboardKicker" class="content-kicker">Administrator</p>
         <h1 class="content-title">Leaderboard</h1>
       </div>
-      <div class="dashboard-main">
-        <section class="dashboard-box dashboard-box-full">
-          <div class="dashboard-header">
-            <h3><i class="fa-solid fa-ranking-star"></i> Top Sit-in Hours</h3>
+      <div class="dashboard-main leaderboard-page">
+        <section class="leaderboard-overview">
+          <div class="leaderboard-intro">
+            <p class="eyebrow">Sit-in Rankings</p>
+            <h2>All students ranked by completed sit-in hours</h2>
+            <p>Every registered student appears here. Completed sessions decide the ranking, and students without hours stay visible with 0h.</p>
           </div>
-          <div class="dashboard-content">
-            <ul class="mini-leaderboard mini-leaderboard-admin" id="adminLeaderboard">
-              <li><span>Loading leaderboard...</span><strong>--</strong></li>
-            </ul>
+
+          <div class="leaderboard-summary-grid">
+            <article class="summary-card">
+              <span class="summary-label">Total Students</span>
+              <strong id="leaderboardStudentCount">0</strong>
+            </article>
+            <article class="summary-card">
+              <span class="summary-label">Total Sit-in Hours</span>
+              <strong id="leaderboardTotalHours">0h</strong>
+            </article>
+            <article class="summary-card">
+              <span class="summary-label">Completed Sessions</span>
+              <strong id="leaderboardSessions">0</strong>
+            </article>
+            <article class="summary-card">
+              <span class="summary-label">Average Per Student</span>
+              <strong id="leaderboardAverageHours">0h</strong>
+            </article>
           </div>
         </section>
+
+        <div class="leaderboard-layout">
+          <section class="leaderboard-panel-card top-rank-panel">
+            <div class="leaderboard-section-heading">
+              <h3><i class="fa-solid fa-ranking-star"></i> Top Sit-in Hours</h3>
+            </div>
+            <div class="leaderboard-podium" id="leaderboardPodium">
+              <article class="leaderboard-podium-card">
+                <span class="podium-position">#1</span>
+                <strong>Loading...</strong>
+                <p>Preparing leaderboard</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="leaderboard-panel-card full-rank-panel">
+            <div class="leaderboard-section-heading">
+              <div>
+                <h3><i class="fa-solid fa-list-ol"></i> Full Ranking</h3>
+                <p>All registered students are included, sorted by total completed sit-in hours.</p>
+              </div>
+            </div>
+            <div class="leaderboard-table-wrap">
+              <table class="leaderboard-table">
+                <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Student ID</th>
+                  <th>Name</th>
+                  <th>Completed Sessions</th>
+                  <th>Total Sit-in Hours</th>
+                  <th>Average / Session</th>
+                </tr>
+                </thead>
+                <tbody id="leaderboardTable">
+                <tr><td colspan="6" style="text-align:center">Loading leaderboard...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
       </div>
     </main>
   </div>
   <div id="toast" class="toast" aria-live="polite"></div>
-  <script src="admin-dashboard.js" defer></script>
+  <script src="leaderboard.js" defer></script>
 </body>
 </html>
