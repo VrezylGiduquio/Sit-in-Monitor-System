@@ -5,7 +5,7 @@ const path = require("path");
 require("./db");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
@@ -50,5 +50,5 @@ const adminReservations = require("./routes/sitin");
 app.use("/admin", adminReservations);
 
 app.listen(PORT, () => {
-  console.log("Server running on http://localhost:3000");
+  console.log(`Server running on http://localhost:${PORT}`);
 });
