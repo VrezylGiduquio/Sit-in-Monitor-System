@@ -1,7 +1,8 @@
+const path = require("path");
 const sqlite3 = require("sqlite3").verbose();
 const bcrypt = require("bcryptjs");
 
-const db = new sqlite3.Database("./school.db", (err) => {
+const db = new sqlite3.Database(path.join(__dirname, "..", "school.db"), (err) => {
   if (err) console.error(err.message);
   console.log("SQLite Connected");
 });
