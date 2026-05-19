@@ -6,8 +6,7 @@
   "scripts": {
     "start": "node server/server.js",
     "dev": "node server/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "npm rebuild sqlite3 --build-from-source"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +21,6 @@
     "sqlite3": "^6.0.1"
   },
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=18"
   }
 }
