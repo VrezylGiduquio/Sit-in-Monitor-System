@@ -970,6 +970,41 @@ linear-gradient(135deg,#0b2f33 0%,#0f766e 52%,#14b8a6 100%);border-radius:26px;p
 .software-section{margin-top:.75rem;padding-top:.5rem;border-top:1px solid #f0ecff}
 .software-section-title{font-size:.72rem;font-weight:700;color:#374151;margin-bottom:.35rem;display:flex;align-items:center;gap:.4rem}
 
+.leaderboard-row-self{background:linear-gradient(135deg,#f0fdfa,#ecfeff)}
+.leaderboard-row-self td{border-bottom-color:#d8f3ee}
+.leaderboard-you-badge{display:inline-flex;align-items:center;gap:.35rem;background:#0f766e;color:#fff;font-size:.67rem;font-weight:800;padding:.18rem .5rem;border-radius:999px}
+.student-rank-highlight{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.15rem;padding:1rem 1.15rem;border-radius:18px;background:linear-gradient(135deg,#f0fdfa,#ffffff);border:1.5px solid #b8efe6;box-shadow:0 10px 24px rgba(15,118,110,.08)}
+.student-rank-copy{display:flex;align-items:center;gap:.85rem;min-width:0}
+.student-rank-badge{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#0f766e,#14b8a6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.15rem;box-shadow:0 10px 20px rgba(20,184,166,.22);flex-shrink:0}
+.student-rank-title{font-family:var(--ff);font-size:.98rem;font-weight:800;color:var(--text)}
+.student-rank-sub{font-size:.8rem;color:var(--muted);margin-top:.15rem;line-height:1.45}
+.student-rank-pill{display:inline-flex;align-items:center;gap:.45rem;padding:.58rem .95rem;border-radius:999px;background:#0f766e;color:#fff;font-family:var(--ff);font-size:1rem;font-weight:800;white-space:nowrap}
+.student-rank-pill small{font-family:var(--fb);font-size:.73rem;font-weight:700;opacity:.86;text-transform:uppercase;letter-spacing:.05em}
+#studentLeaderboardTable{width:100%;min-width:1120px;border-collapse:separate;table-layout:auto}
+#studentLeaderboardTable th{white-space:nowrap}
+#studentLeaderboardTable td{vertical-align:middle}
+#studentLeaderboardTable th:first-child,
+#studentLeaderboardTable td:first-child{width:72px;text-align:center}
+#studentLeaderboardTable th:nth-child(2),
+#studentLeaderboardTable td:nth-child(2){min-width:220px}
+#studentLeaderboardTable th:nth-child(3),
+#studentLeaderboardTable td:nth-child(3){min-width:150px}
+#studentLeaderboardTable th:nth-child(4),
+#studentLeaderboardTable td:nth-child(4){min-width:120px}
+#studentLeaderboardTable th:nth-child(5),
+#studentLeaderboardTable td:nth-child(5){min-width:150px}
+#studentLeaderboardTable th:nth-child(6),
+#studentLeaderboardTable td:nth-child(6){min-width:150px}
+#studentLeaderboardTable th:nth-child(7),
+#studentLeaderboardTable td:nth-child(7){min-width:130px}
+#studentLeaderboardTable th:nth-child(8),
+#studentLeaderboardTable td:nth-child(8){width:110px}
+
+@media(max-width:700px){
+  .student-rank-highlight{align-items:flex-start}
+  .student-rank-pill{font-size:.92rem}
+}
+
 /* Points Chip */
 .points-chip{display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .65rem .28rem .28rem;border-radius:20px;background:transparent;border:1.5px solid rgba(108,63,207,.18);cursor:default;transition:background .15s}
 .points-chip:hover{background:rgba(108,63,207,.06)}
@@ -1215,6 +1250,7 @@ linear-gradient(135deg,#0b2f33 0%,#0f766e 52%,#14b8a6 100%);border-radius:26px;p
       <li><a href="#" class="sb-link" data-page="history"><span class="sb-icon"><i class="fa-solid fa-clock-rotate-left"></i></span><span class="sb-label">History</span></a></li>
       <li><a href="#" class="sb-link" data-page="reservation"><span class="sb-icon"><i class="fa-solid fa-calendar-plus"></i></span><span class="sb-label">Reservation</span></a></li>
       <li><a href="#" class="sb-link" data-page="sessions"><span class="sb-icon"><i class="fa-solid fa-table-list"></i></span><span class="sb-label">Sessions</span></a></li>
+      <li><a href="#" class="sb-link" data-page="leaderboard"><span class="sb-icon"><i class="fa-solid fa-trophy"></i></span><span class="sb-label">Leaderboard</span></a></li>
       <li><a href="#" class="sb-link" data-page="resources"><span class="sb-icon"><i class="fa-solid fa-file-pdf"></i></span><span class="sb-label">Resources</span></a></li>
     </ul>
   </nav>
@@ -1677,6 +1713,63 @@ linear-gradient(135deg,#0b2f33 0%,#0f766e 52%,#14b8a6 100%);border-radius:26px;p
     </div>
   </div><!-- /page-sessions -->
 
+  <!-- ══ LEADERBOARD ══ -->
+  <div class="dash-page" id="page-leaderboard">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Leaderboard</h1>
+        <p class="page-sub">Top students ranked by sit-in score — based on total sessions, hours logged, and consistency.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn-outline-sm" id="studentRefreshLeaderboardBtn"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1.25rem;background:#faf8ff;border:1.5px solid #ede9fe;border-radius:12px;padding:.7rem 1.1rem;font-size:.78rem;color:var(--muted)">
+      <i class="fa-solid fa-circle-info" style="color:var(--purple-mid)"></i>
+      <span><strong style="color:var(--text)">Score formula:</strong> (Sit-in Points × 0.5) + (Total Hours × 0.3)</span>
+      <span style="color:#d1d5db">·</span>
+      <span>1 Sit-in Point = every 3 completed sessions</span>
+      <span style="color:#d1d5db">·</span>
+      <span>Your row is highlighted</span>
+    </div>
+
+    <div class="student-rank-highlight" id="studentRankHighlight" style="display:none">
+      <div class="student-rank-copy">
+        <div class="student-rank-badge"><i class="fa-solid fa-ranking-star"></i></div>
+        <div>
+          <div class="student-rank-title" id="studentRankTitle">Your Placement</div>
+          <div class="student-rank-sub" id="studentRankSub">Complete a sit-in session to appear on the leaderboard.</div>
+        </div>
+      </div>
+      <div class="student-rank-pill" id="studentRankPill"><small>Rank</small> —</div>
+    </div>
+
+    <div id="studentLeaderboardPodium" style="display:none;margin-bottom:1.5rem"></div>
+
+    <div class="dash-card no-pad">
+      <div class="table-wrap">
+        <table class="data-table" id="studentLeaderboardTable">
+          <thead>
+            <tr>
+              <th style="width:52px;text-align:center">Rank</th>
+              <th>Student</th>
+              <th>Course &amp; Year</th>
+              <th style="text-align:center">Sessions</th>
+              <th style="text-align:center">Rating</th>
+              <th>Top Purpose</th>
+              <th style="text-align:center">Last Seen</th>
+              <th style="text-align:center">Score</th>
+            </tr>
+          </thead>
+          <tbody id="studentLeaderboardBody">
+            <tr><td colspan="8" style="text-align:center;padding:3rem;color:var(--muted)"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem;color:#ddd6fe;display:block;margin-bottom:.7rem"></i>Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- /page-leaderboard -->
+
   <!-- ══ RESOURCES ══ -->
   <div class="dash-page" id="page-resources">
     <div class="page-header">
@@ -2032,7 +2125,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuItems = document.querySelectorAll('.sb-menu-item[data-page]');
   const pages     = document.querySelectorAll('.dash-page');
 
-  const VALID_PAGES = ['home','history','reservation','sessions','resources','profile'];
+  const VALID_PAGES = ['home','history','reservation','sessions','leaderboard','resources','profile'];
 
   function switchPage(pageId) {
     if (!VALID_PAGES.includes(pageId)) pageId = 'home';
@@ -3175,11 +3268,171 @@ function openAnnouncementModal(annId, sender, content, time) {
     });
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
     interceptStaticPagination();
     interceptHistorySearch();
     pollHistory(true);
     setInterval(() => pollHistory(false), 5000);
+  });
+})();
+
+/* ══ STUDENT LEADERBOARD ══ */
+(function() {
+  const myIdNumber = <?= json_encode($id_number) ?>;
+  let leaderboardSnapshot = '';
+
+  async function loadStudentLeaderboard(force = false) {
+    const tbody = document.getElementById('studentLeaderboardBody');
+    const podium = document.getElementById('studentLeaderboardPodium');
+    const rankHighlight = document.getElementById('studentRankHighlight');
+    const rankTitle = document.getElementById('studentRankTitle');
+    const rankSub = document.getElementById('studentRankSub');
+    const rankPill = document.getElementById('studentRankPill');
+    if (!tbody) return;
+    const colSpan = 8;
+
+    if (force || tbody.querySelector('td[colspan]')?.textContent?.includes('No leaderboard')) {
+      tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center;padding:3rem;color:var(--muted)"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem;color:#ddd6fe;display:block;margin-bottom:.7rem"></i>Loading leaderboard...</td></tr>`;
+      if (podium) podium.style.display = 'none';
+    }
+
+    try {
+      const fd = new FormData();
+      fd.append('_action', 'get_leaderboard');
+      const res = await fetch('../admin.php', { method:'POST', body:fd });
+      const data = await res.json();
+      const rows = Array.isArray(data.leaderboard) ? data.leaderboard : [];
+      const snapshot = JSON.stringify(rows);
+      if (!force && snapshot === leaderboardSnapshot) return;
+      leaderboardSnapshot = snapshot;
+
+      if (!data.success || !rows.length) {
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center;padding:3rem;color:var(--muted)"><i class="fa-solid fa-trophy" style="font-size:2.5rem;color:#ddd6fe;display:block;margin-bottom:.7rem"></i>No leaderboard data yet.<br><small>Students need at least 1 completed sit-in to appear.</small></td></tr>`;
+        if (podium) {
+          podium.style.display = 'none';
+          podium.innerHTML = '';
+        }
+        if (rankHighlight) {
+          rankHighlight.style.display = 'flex';
+          if (rankTitle) rankTitle.textContent = 'Your Placement';
+          if (rankSub) rankSub.textContent = 'Complete a sit-in session to appear on the leaderboard.';
+          if (rankPill) rankPill.innerHTML = '<small>Rank</small> —';
+        }
+        return;
+      }
+
+      const me = rows.find(r => String(r.id_number) === String(myIdNumber));
+      if (rankHighlight) {
+        rankHighlight.style.display = 'flex';
+        if (me) {
+          if (rankTitle) rankTitle.textContent = `${me.display_name || `${me.first_name || ''} ${me.last_name || ''}`.trim()} is currently ranked`;
+          if (rankSub) rankSub.textContent = `${me.course || '—'} · ${me.year_label || '—'} · ${me.total_sitins || 0} completed session${Number(me.total_sitins || 0) !== 1 ? 's' : ''} · ${Number(me.final_score || 0).toFixed(2)} points`;
+          if (rankPill) rankPill.innerHTML = `<small>Your Rank</small> #${me.rank}`;
+        } else {
+          if (rankTitle) rankTitle.textContent = 'You are not ranked yet';
+          if (rankSub) rankSub.textContent = 'Finish at least one completed sit-in session to appear in the standings.';
+          if (rankPill) rankPill.innerHTML = '<small>Rank</small> —';
+        }
+      }
+
+      if (podium) {
+        const podiumData = [
+          { idx: 1, height: '130px', medal: '🥈', bg: 'linear-gradient(135deg,#e5e7eb,#f3f4f6)', border: '#9ca3af', labelBg: '#6b7280' },
+          { idx: 0, height: '170px', medal: '🥇', bg: 'linear-gradient(135deg,#fef9c3,#fef3c7)', border: '#f5c518', labelBg: '#d97706' },
+          { idx: 2, height: '100px', medal: '🥉', bg: 'linear-gradient(135deg,#fde8d8,#fed7aa)', border: '#cd7f32', labelBg: '#b45309' },
+        ].filter(p => rows[p.idx]);
+
+        if (podiumData.length) {
+          podium.style.display = 'grid';
+          podium.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;max-width:700px;margin-left:auto;margin-right:auto;align-items:end';
+          podium.innerHTML = podiumData.map(p => {
+            const s = rows[p.idx];
+            const initials = (s.first_name?.[0] || '') + (s.last_name?.[0] || '');
+            const stars = s.avg_rating ? '★'.repeat(Math.round(s.avg_rating)) + '☆'.repeat(5 - Math.round(s.avg_rating)) : '';
+            const avatarInner = s.profile_photo
+              ? `<img src="${s.profile_photo}?v=${Date.now()}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" alt="${initials}" onerror="this.parentElement.innerHTML='${initials.toUpperCase()}'">`
+              : initials.toUpperCase();
+            const avatarStyle = s.profile_photo ? `background:${p.labelBg};overflow:hidden` : `background:${p.labelBg}`;
+            return `<div style="background:${p.bg};border:2px solid ${p.border};border-radius:16px;padding:1.2rem .8rem;text-align:center;display:flex;flex-direction:column;align-items:center;gap:.4rem;min-height:${p.height};justify-content:flex-end">
+              <div style="font-size:1.8rem">${p.medal}</div>
+              <div style="width:56px;height:56px;border-radius:50%;${avatarStyle};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;font-family:var(--ff);border:3px solid ${p.border};box-shadow:0 2px 10px rgba(0,0,0,.15)">${avatarInner}</div>
+              <div style="font-weight:800;font-size:.88rem;color:var(--text);line-height:1.2">${s.display_name || `${s.first_name || ''} ${s.last_name || ''}`.trim()}</div>
+              <div style="font-size:.72rem;color:var(--muted)">${s.course} · ${s.year_label}</div>
+              <div style="background:${p.labelBg};color:#fff;border-radius:20px;padding:.18rem .65rem;font-size:.75rem;font-weight:700">${Number(s.final_score).toFixed(2)} pts</div>
+              ${stars ? `<div style="font-size:.7rem;color:#f5c518;letter-spacing:1px" title="Avg feedback rating: ${s.avg_rating}">${stars}</div>` : ''}
+              <div style="font-size:.7rem;color:var(--muted)">${s.total_sitins} sessions</div>
+            </div>`;
+          }).join('');
+        } else {
+          podium.style.display = 'none';
+          podium.innerHTML = '';
+        }
+      }
+
+      const medalIcons = ['🥇','🥈','🥉'];
+      tbody.innerHTML = rows.map((s, i) => {
+        const isMe = String(s.id_number) === String(myIdNumber);
+        const rowClass = isMe ? 'leaderboard-row-self' : '';
+        const rowHighlight = isMe
+          ? 'background:linear-gradient(135deg,#f0fdfa,#ecfeff)'
+          : i === 0 ? 'background:#fffbeb'
+          : i === 1 ? 'background:#fafafa'
+          : i === 2 ? 'background:#fdf6ee'
+          : '';
+        const rankCell = i < 3
+          ? `<td style="text-align:center;font-size:1.15rem">${medalIcons[i]}</td>`
+          : `<td style="text-align:center;color:${isMe ? '#0f766e' : 'var(--muted)'};font-weight:700;font-size:.88rem">${s.rank}</td>`;
+        const initials = (s.first_name?.[0] || '') + (s.last_name?.[0] || '');
+        const avatarBg = ['#6c3fcf','#a259f7','#3b82f6','#22c55e','#f59e0b','#ef4444'][i % 6];
+        const avatarInner = s.profile_photo
+          ? `<img src="${s.profile_photo}?v=${Date.now()}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" alt="${initials}" onerror="this.style.display='none';this.parentElement.setAttribute('data-fb','${initials.toUpperCase()}')">`
+          : initials.toUpperCase();
+        const avatarStyle = s.profile_photo ? `overflow:hidden;background:${avatarBg}` : `background:${avatarBg}`;
+        const ratingStars = s.avg_rating
+          ? `<span style="color:#f5c518;font-size:.75rem">${'★'.repeat(Math.round(s.avg_rating))}</span><span style="color:#d1d5db;font-size:.75rem">${'☆'.repeat(5 - Math.round(s.avg_rating))}</span> <span style="font-size:.72rem;color:var(--muted)">(${s.avg_rating})</span>`
+          : `<span style="font-size:.72rem;color:#d1d5db">No rating</span>`;
+        const sessionBar = Math.min(100, Math.round((s.sessions_used / 30) * 100));
+        const sessionBarColor = sessionBar >= 80 ? '#ef4444' : sessionBar >= 50 ? '#f59e0b' : '#6c3fcf';
+
+        return `<tr class="${rowClass}" style="${rowHighlight}">
+          ${rankCell}
+          <td>
+            <div style="display:flex;align-items:center;gap:.6rem">
+              <div style="width:34px;height:34px;border-radius:50%;${avatarStyle};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;flex-shrink:0">${avatarInner}</div>
+              <div>
+                <div style="font-weight:700;font-size:.88rem;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap">${s.display_name || `${s.first_name || ''} ${s.last_name || ''}`.trim()}${isMe ? '<span class="leaderboard-you-badge"><i class="fa-solid fa-location-dot"></i> YOU</span>' : ''}</div>
+                <div style="font-size:.7rem;color:var(--muted)">${s.id_number}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge purple" style="font-size:.7rem">${s.course}</span>
+            <div style="font-size:.7rem;color:var(--muted);margin-top:.2rem">${s.year_label}</div>
+          </td>
+          <td style="text-align:center">
+            <div style="font-weight:800;color:${isMe ? '#0f766e' : 'var(--purple-mid)'};font-size:.95rem">${s.total_sitins}</div>
+            <div style="width:60px;height:5px;background:#ede9fe;border-radius:10px;margin:.3rem auto 0">
+              <div style="width:${sessionBar}%;height:100%;background:${sessionBarColor};border-radius:10px"></div>
+            </div>
+            <div style="font-size:.67rem;color:var(--muted);margin-top:.15rem">${s.sessions_used}/30 used</div>
+          </td>
+          <td style="text-align:center">${ratingStars}<br><span style="font-size:.68rem;color:var(--muted)">${s.feedback_count} review${s.feedback_count !== 1 ? 's' : ''}</span></td>
+          <td style="font-size:.8rem;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.fav_purpose}</td>
+          <td style="text-align:center;font-size:.78rem;white-space:nowrap;color:var(--muted)">${s.last_seen}</td>
+          <td style="text-align:center">
+            <span style="background:${isMe ? '#0f766e' : '#f3f0ff'};color:${isMe ? '#fff' : 'var(--purple-mid)'};font-weight:800;padding:.25rem .7rem;border-radius:20px;font-size:.82rem;white-space:nowrap">${Number(s.final_score).toFixed(2)}</span>
+          </td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center;color:#ef4444;padding:2rem;font-size:.85rem"><i class="fa-solid fa-circle-xmark"></i> Failed to load leaderboard. Please try again.</td></tr>`;
+    }
+  }
+
+  window.loadStudentLeaderboard = loadStudentLeaderboard;
+  document.getElementById('studentRefreshLeaderboardBtn')?.addEventListener('click', () => {
+    leaderboardSnapshot = '';
+    loadStudentLeaderboard(true);
   });
 })();
 
@@ -3354,6 +3607,7 @@ function openAnnouncementModal(annId, sender, content, time) {
     'history':     () => { if (typeof pollHistory       === 'function') pollHistory(true); },
     'reservation': () => { if (typeof fetchReservations === 'function') fetchReservations(); },
     'sessions':    () => { if (typeof loadSessions      === 'function') loadSessions(); },
+    'leaderboard': () => { if (typeof loadStudentLeaderboard === 'function') loadStudentLeaderboard(true); },
     'resources':   () => { loadSoftwarePdfBanner(); loadResources(); },
   };
 
@@ -3381,7 +3635,7 @@ function openAnnouncementModal(annId, sender, content, time) {
     });
 
     // Restore last visited page from URL hash — default to 'home'
-    const VALID_PAGES = ['home','history','reservation','sessions','resources','profile'];
+    const VALID_PAGES = ['home','history','reservation','sessions','leaderboard','resources','profile'];
     const hashPage = location.hash.replace('#', '');
     const restored = (hashPage && VALID_PAGES.includes(hashPage)) ? hashPage : 'home';
     switchPage(restored);

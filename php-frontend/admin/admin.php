@@ -83,6 +83,7 @@ try {
     try { $pdo->exec("ALTER TABLE reservations ADD COLUMN pc_number INT DEFAULT NULL"); } catch(Exception $e){}
     try { $pdo->exec("ALTER TABLE reservations ADD COLUMN admin_pc INT DEFAULT NULL"); } catch(Exception $e){}
     try { $pdo->exec("ALTER TABLE reservations ADD COLUMN rejection_reason VARCHAR(255) DEFAULT NULL"); } catch(Exception $e){}
+    try { $pdo->exec("ALTER TABLE reservations MODIFY COLUMN status ENUM('pending','approved','done','cancelled') NOT NULL DEFAULT 'pending'"); } catch(Exception $e){}
     // System settings table
     $pdo->exec("CREATE TABLE IF NOT EXISTS system_settings (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -339,6 +340,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_action'] ?? '') === 'end_
             ORDER BY date ASC
             LIMIT 1
         ")->execute([$sitinData['student_id']]);
+
+        logActivity(
+            $pdo,
+            'SITIN_ENDED',
+            "Sit-in ended for student ID {$sitinData['student_id']} — Lab: {$sitinData['lab']}, Purpose: {$sitinData['purpose']}",
+            'sitin',
+            $id
+        );
     }
 
     echo json_encode(['success'=>true,'message'=>'Sit-in ended.']);
@@ -493,43 +502,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_action'] ?? '') === 'appr
         // Update lab and pc in reservation
         $pdo->prepare("UPDATE reservations SET status='approved', lab=?, admin_pc=? WHERE id=?")->execute([$final_lab, $final_pc, $id]);
 
-        $sitin_created = false;
-        $sitin_data    = null;
-        $reservationDate = $rsv['date'];
-        $today = date('Y-m-d');
-
-        if ($reservationDate === $today) {
-            $check = $pdo->prepare("SELECT id FROM sitins WHERE student_id=? AND status='active'");
-            $check->execute([$rsv['student_id']]);
-            if (!$check->fetch()) {
-                $remaining = $rsv['remaining_session'] ?? 30;
-                if ($remaining > 0) {
-                    $pdo->prepare("INSERT INTO sitins (student_id, purpose, lab, pc_number, remaining_session, status, time_in) VALUES (?,?,?,?,?,'active',NOW())")
-                        ->execute([$rsv['student_id'], $rsv['purpose'], $final_lab, $final_pc, $remaining]);
-                    $pdo->prepare("UPDATE students SET remaining_session=remaining_session-1 WHERE id=?")->execute([$rsv['student_id']]);
-                    $sitin_created = true;
-                    $sitinId = $pdo->lastInsertId();
-                    $sitStmt = $pdo->prepare("SELECT s.id, s.purpose, s.lab, s.pc_number, s.remaining_session, s.time_in, st.first_name, st.last_name, st.id_number as student_id_number FROM sitins s JOIN students st ON s.student_id = st.id WHERE s.id = ?");
-                    $sitStmt->execute([$sitinId]);
-                    $sitin_data = $sitStmt->fetch(PDO::FETCH_ASSOC);
-                    logActivity($pdo, 'SITIN_CREATED', "Auto sit-in from approved reservation #$id for student {$rsv['first_name']} {$rsv['last_name']} — Lab: $final_lab, PC: ".($final_pc?'PC-'.str_pad($final_pc,2,'0',STR_PAD_LEFT):'—'), 'sitin', $rsv['student_id']);
-                }
-            }
-        }
-
         $labNote = ($admin_lab && $admin_lab !== $rsv['lab']) ? " (Lab changed to $final_lab)" : '';
         logActivity($pdo, 'RESERVATION_APPROVED', "Reservation #$id approved for student {$rsv['first_name']} {$rsv['last_name']} — Lab: $final_lab$labNote, PC: ".($final_pc?'PC-'.str_pad($final_pc,2,'0',STR_PAD_LEFT):'—').', Date: '.$rsv['date'], 'reservation', $id);
         echo json_encode([
             'success' => true,
-            'message' => $sitin_created ? 'Reservation approved and student automatically checked in!' : 'Reservation approved.',
-            'sitin_created' => $sitin_created,
-            'sitin_data'    => $sitin_data,
+            'message' => 'Reservation approved.',
             'student_name'  => $rsv['first_name'].' '.$rsv['last_name'],
             'student_id'    => $rsv['student_db_id'],
             'lab'           => $final_lab,
             'purpose'       => $rsv['purpose'],
             'assigned_pc'   => $final_pc,
             'lab_changed'   => ($admin_lab && $admin_lab !== $rsv['lab']),
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success'=>false,'message'=>'Error: '.$e->getMessage()]);
+    }
+    exit;
+}
+
+/* ── Start Sit-in From Approved Reservation ── */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_action'] ?? '') === 'start_sitin_from_reservation') {
+    while (ob_get_level()) ob_end_clean();
+    header('Content-Type: application/json');
+    if (empty($_SESSION['admin_logged_in'])) { echo json_encode(['success'=>false,'message'=>'Unauthorized.']); exit; }
+
+    $id = intval($_POST['reservation_id'] ?? 0);
+    if (!$id) { echo json_encode(['success'=>false,'message'=>'Invalid reservation.']); exit; }
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT r.*, s.remaining_session, s.first_name, s.last_name, s.id_number AS student_id_number
+            FROM reservations r
+            JOIN students s ON r.student_id = s.id
+            WHERE r.id = ?
+        ");
+        $stmt->execute([$id]);
+        $rsv = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$rsv) { echo json_encode(['success'=>false,'message'=>'Reservation not found.']); exit; }
+        if ($rsv['status'] !== 'approved') { echo json_encode(['success'=>false,'message'=>'Approve the reservation first before starting sit-in.']); exit; }
+
+        $check = $pdo->prepare("SELECT id FROM sitins WHERE student_id=? AND status='active'");
+        $check->execute([$rsv['student_id']]);
+        if ($check->fetch()) { echo json_encode(['success'=>false,'message'=>'Student already has an active sit-in session.']); exit; }
+
+        $remaining = (int)($rsv['remaining_session'] ?? 30);
+        if ($remaining <= 0) { echo json_encode(['success'=>false,'message'=>'No remaining sessions.']); exit; }
+
+        $finalPc = $rsv['admin_pc'] ?: ($rsv['pc_number'] ?: null);
+        if ($finalPc) {
+            $pcChk = $pdo->prepare("SELECT id FROM sitins WHERE lab=? AND pc_number=? AND status='active'");
+            $pcChk->execute([$rsv['lab'], $finalPc]);
+            if ($pcChk->fetch()) {
+                echo json_encode(['success'=>false,'message'=>'Assigned PC is already in use.']);
+                exit;
+            }
+        }
+
+        $pdo->prepare("INSERT INTO sitins (student_id,purpose,lab,pc_number,remaining_session,status,time_in) VALUES (?,?,?,?,?,'active',NOW())")
+            ->execute([$rsv['student_id'], $rsv['purpose'], $rsv['lab'], $finalPc, $remaining]);
+        $pdo->prepare("UPDATE students SET remaining_session=remaining_session-1 WHERE id=?")->execute([$rsv['student_id']]);
+
+        $sitinId = (int)$pdo->lastInsertId();
+        $sitStmt = $pdo->prepare("
+            SELECT s.id, s.student_id, s.purpose, s.lab, s.pc_number, s.remaining_session, s.time_in,
+                   st.first_name, st.last_name, st.id_number as student_id_number
+            FROM sitins s
+            JOIN students st ON s.student_id = st.id
+            WHERE s.id = ?
+        ");
+        $sitStmt->execute([$sitinId]);
+        $sitin = $sitStmt->fetch(PDO::FETCH_ASSOC);
+
+        $pcLabel = $finalPc ? ' — PC-'.str_pad($finalPc,2,'0',STR_PAD_LEFT) : '';
+        logActivity($pdo, 'SITIN_CREATED', "Sit-in started from reservation #$id for student {$rsv['first_name']} {$rsv['last_name']} — Lab: {$rsv['lab']}$pcLabel, Purpose: {$rsv['purpose']}", 'sitin', $sitinId);
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Sit-in started successfully.',
+            'sitin'   => $sitin,
+            'student_id' => $rsv['student_id'],
         ]);
     } catch (Exception $e) {
         echo json_encode(['success'=>false,'message'=>'Error: '.$e->getMessage()]);
@@ -1028,7 +1080,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_action'] ?? '') === 'get_
     header('Content-Type: application/json');
     if (empty($_SESSION['admin_logged_in'])) { echo json_encode(['success'=>false]); exit; }
     try {
-        $logs = $pdo->query("SELECT * FROM activity_logs WHERE entity_type='reservation' AND action_type IN ('RESERVATION_APPROVED','RESERVATION_DENIED') ORDER BY created_at DESC LIMIT 200")->fetchAll(PDO::FETCH_ASSOC);
+        $logs = $pdo->query("
+            SELECT * FROM activity_logs
+            WHERE action_type IN (
+                'RESERVATION_APPROVED',
+                'RESERVATION_DENIED',
+                'SITIN_CREATED',
+                'SITIN_ENDED'
+            )
+            ORDER BY created_at DESC
+            LIMIT 200
+        ")->fetchAll(PDO::FETCH_ASSOC);
         echo json_encode(['success'=>true,'logs'=>$logs]);
     } catch(Exception $e) { echo json_encode(['success'=>false,'logs'=>[]]); }
     exit;
@@ -1106,9 +1168,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_action'] ?? '') === 'poll
         $data = $pdo->query("
             SELECT r.id, r.student_id, r.lab, r.date, r.time_in, r.purpose, r.status, r.created_at,
                    r.pc_number, r.admin_pc,
-                   s.first_name, s.last_name, s.id_number as student_id_number, s.course, s.email, s.id as student_db_id
+                   s.first_name, s.last_name, s.id_number as student_id_number, s.course, s.email, s.id as student_db_id,
+                   asi.id AS active_sitin_id
             FROM reservations r
             JOIN students s ON r.student_id = s.id
+            LEFT JOIN sitins asi ON asi.student_id = r.student_id AND asi.status = 'active'
             ORDER BY
                 CASE r.status WHEN 'pending' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
                 r.date ASC, r.time_in ASC
@@ -1126,18 +1190,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_action'] ?? '') === 'poll
     while (ob_get_level()) ob_end_clean();
     header('Content-Type: application/json');
     if (empty($_SESSION['admin_logged_in'])) { echo json_encode(['success'=>false]); exit; }
-    $data = ['success' => true];
+    $data = ['success' => true, 'sitins' => [], 'records' => []];
     try {
         $data['total']       = (int)$pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
         $data['currently']   = (int)$pdo->query("SELECT COUNT(*) FROM sitins WHERE status='active'")->fetchColumn();
         $data['total_sitin'] = (int)$pdo->query("SELECT COUNT(*) FROM sitins")->fetchColumn();
         $data['sitins']      = $pdo->query("
-            SELECT s.id, s.purpose, s.lab, s.remaining_session, s.time_in,
+            SELECT s.id, s.student_id, s.purpose, s.lab, s.remaining_session, s.time_in,
                    st.first_name, st.last_name, st.id_number as student_id_number
             FROM sitins s
             JOIN students st ON s.student_id = st.id
             WHERE s.status = 'active'
-            ORDER BY s.time_in DESC
+            ORDER BY s.id ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
         $data['records']     = $pdo->query("
             SELECT s.id, s.purpose, s.lab, s.time_in, s.time_out, s.status,
@@ -1146,7 +1210,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['_action'] ?? '') === 'poll
             JOIN students st ON s.student_id = st.id
             ORDER BY s.time_in DESC LIMIT 100
         ")->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Exception $e) { $data['error'] = $e->getMessage(); }
+    } catch (Exception $e) {
+        $data['success'] = false;
+        $data['error'] = $e->getMessage();
+    }
     echo json_encode($data);
     exit;
 }
@@ -1455,7 +1522,19 @@ $reservation_enabled = true;
 try { $rv = $pdo->query("SELECT setting_value FROM system_settings WHERE setting_key='reservation_enabled'")->fetchColumn(); $reservation_enabled = ($rv === false) ? true : (intval($rv) === 1); } catch(Exception $e){}
 
 $activity_logs = [];
-try { $activity_logs = $pdo->query("SELECT * FROM activity_logs WHERE entity_type='reservation' AND action_type IN ('RESERVATION_APPROVED','RESERVATION_DENIED') ORDER BY created_at DESC LIMIT 100")->fetchAll(PDO::FETCH_ASSOC); } catch(Exception $e){}
+try {
+    $activity_logs = $pdo->query("
+        SELECT * FROM activity_logs
+        WHERE action_type IN (
+            'RESERVATION_APPROVED',
+            'RESERVATION_DENIED',
+            'SITIN_CREATED',
+            'SITIN_ENDED'
+        )
+        ORDER BY created_at DESC
+        LIMIT 100
+    ")->fetchAll(PDO::FETCH_ASSOC);
+} catch(Exception $e){}
 $currently   = 0; $total_sitin = 0;
 try {
     $currently   = $pdo->query("SELECT COUNT(*) FROM sitins WHERE status='active'")->fetchColumn();
@@ -1471,7 +1550,7 @@ try {
     $sitins = $pdo->query("
         SELECT s.*, st.first_name, st.last_name, st.id_number as student_id_number
         FROM sitins s JOIN students st ON s.student_id = st.id
-        WHERE s.status = 'active' ORDER BY s.time_in DESC
+        WHERE s.status = 'active' ORDER BY s.id ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {}
 
@@ -1484,9 +1563,11 @@ try {
 $all_reservations = [];
 try {
     $all_reservations = $pdo->query("
-        SELECT r.*, s.first_name, s.last_name, s.id_number as student_id_number, s.course, s.email, s.id as student_db_id
+        SELECT r.*, s.first_name, s.last_name, s.id_number as student_id_number, s.course, s.email, s.id as student_db_id,
+               asi.id AS active_sitin_id
         FROM reservations r
         JOIN students s ON r.student_id = s.id
+        LEFT JOIN sitins asi ON asi.student_id = r.student_id AND asi.status = 'active'
         ORDER BY 
             CASE r.status 
                 WHEN 'pending' THEN 1 
@@ -1534,7 +1615,11 @@ try {
         GROUP BY si.lab
     ")->fetchAll(PDO::FETCH_ASSOC);
     
-    foreach ($fb_stats as $stat) { $feedback_stats[$stat['lab']] = $stat; }
+    foreach ($fb_stats as $stat) {
+        $labKey = isset($stat['lab']) && $stat['lab'] !== null ? (string)$stat['lab'] : '';
+        if ($labKey === '') continue;
+        $feedback_stats[$labKey] = $stat;
+    }
 } catch (Exception $e) {}
 
 $analytics = [];
@@ -1609,24 +1694,10 @@ body{font-family:var(--fb);color:var(--text)}
 .sb-link.active .sb-icon{background:rgba(15,118,110,.12)}
 .sb-link:hover .sb-icon{background:rgba(15,118,110,.08);transform:scale(1.04)}
 .sb-spacer{flex:1}
-.sb-user-section{padding:.4rem .7rem .5rem;border-top:1px solid #ece9f8;position:relative}
-.sb-user-btn{display:flex;align-items:center;gap:.5rem;padding:.4rem .55rem;border-radius:10px;cursor:pointer;transition:background .2s}
-.sb-user-btn:hover{background:#fff4f4}
-.sb-avatar{width:30px;height:30px;border-radius:8px;color:#fff;font-family:var(--ff);font-size:.8rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:linear-gradient(135deg,#dc2626,#f97316);box-shadow:0 2px 8px rgba(220,38,38,.4)}
-.sb-user-info{flex:1;min-width:0;display:flex;flex-direction:column}
-.sb-user-name{font-size:.82rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sb-user-id{font-size:.7rem;color:var(--muted)}
-.sb-chevron{font-size:.65rem;color:var(--muted);transition:transform .2s;flex-shrink:0}
-.sb-chevron.open{transform:rotate(180deg)}
-.sb-user-menu{position:absolute;bottom:calc(100% + .3rem);left:.7rem;right:.7rem;background:var(--white);border:1px solid #ece9f8;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.12);overflow:hidden;display:none;z-index:400}
-.sb-user-menu.open{display:block}
-.sb-menu-item{display:flex;align-items:center;gap:.6rem;padding:.7rem 1rem;font-size:.85rem;font-weight:500;color:#374151;text-decoration:none;cursor:pointer;transition:background .15s}
-.sb-menu-item i{font-size:.85rem;width:16px;text-align:center;color:var(--purple-mid)}
-.sb-menu-item:hover{background:#f9fafb}
-.sb-menu-item.danger{color:#ef4444}
-.sb-menu-item.danger i{color:#ef4444}
-.sb-menu-item.danger:hover{background:#fef2f2}
-.sb-menu-divider{height:1px;background:#f0ecff}
+.sb-user-section{padding:.8rem .75rem 1rem;border-top:1px solid #ece9f8}
+.sb-logout-btn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:.55rem;padding:.78rem 1rem;border-radius:14px;border:1.5px solid #fecaca;background:#fff5f5;color:#dc2626;font-size:.84rem;font-weight:700;cursor:pointer;font-family:var(--fb);transition:all .18s}
+.sb-logout-btn:hover{background:#fef2f2;border-color:#fca5a5;transform:translateY(-1px)}
+.sb-logout-btn i{font-size:.85rem}
 .dash-topbar{display:none;align-items:center;justify-content:space-between;height:56px;padding:0 1rem;background:var(--white);border-bottom:1px solid #ece9f8;position:fixed;top:0;left:0;right:0;z-index:250;box-shadow:0 2px 10px rgba(0,0,0,.06)}
 .dash-topbar-brand{display:flex;align-items:center;gap:.5rem;font-family:var(--ff);font-size:.9rem;font-weight:800;color:var(--text)}
 .sb-toggle{background:none;border:none;font-size:1.1rem;color:var(--text);cursor:pointer;padding:.4rem;border-radius:8px;transition:background .15s}
@@ -1824,10 +1895,11 @@ body{font-family:var(--fb);color:var(--text)}
 .reservation-card{background:linear-gradient(180deg,#fff,#fbf9ff);border-radius:20px;border:1px solid #e9e2fb;overflow:hidden;transition:all 0.22s;box-shadow:0 10px 24px rgba(50,27,105,0.06)}
 .reservation-card:hover{transform:translateY(-5px);box-shadow:0 18px 34px rgba(108,63,207,0.14);border-color:#d8cdfc}
 .status-badge-res{padding:.25rem .75rem;border-radius:20px;font-size:.7rem;font-weight:700;color:#fff}
-.view-student-btn,.approve-rsv-btn,.reject-rsv-btn{transition:all .15s}
+.view-student-btn,.approve-rsv-btn,.reject-rsv-btn,.start-rsv-sitin-btn{transition:all .15s}
 .view-student-btn:hover{background:#f3f0ff;border-color:#6c3fcf;color:#6c3fcf}
 .approve-rsv-btn:hover{background:#16a34a;transform:translateY(-1px);box-shadow:0 2px 8px rgba(34,197,94,0.3)}
 .reject-rsv-btn:hover{background:#fee2e2;border-color:#ef4444;transform:translateY(-1px)}
+.start-rsv-sitin-btn:hover{background:#0f766e;transform:translateY(-1px);box-shadow:0 2px 8px rgba(15,118,110,0.28)}
 
 /* Reservation Tabs */
 .rsv-tabs{display:flex;gap:.3rem;background:linear-gradient(135deg,#f3f0ff,#ece8fb);border-radius:16px;padding:.35rem;margin-bottom:0;width:fit-content;border:1px solid #e7e0fb}
@@ -1904,18 +1976,7 @@ body{font-family:var(--fb);color:var(--text)}
     </ul>
   </nav>
   <div class="sb-user-section">
-    <div class="sb-user-btn" id="userMenuBtn">
-      <div class="sb-avatar">A</div>
-      <div class="sb-user-info">
-        <span class="sb-user-name"><?= htmlspecialchars($admin_name) ?></span>
-        <span class="sb-user-id">Administrator</span>
-      </div>
-      <i class="fa-solid fa-chevron-up sb-chevron" id="userChevron"></i>
-    </div>
-    <div class="sb-user-menu" id="userMenu">
-      <div class="sb-menu-divider"></div>
-      <span class="sb-menu-item danger" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</span>
-    </div>
+    <button class="sb-logout-btn" id="logoutBtn" type="button"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
   </div>
 </aside>
 
@@ -1925,7 +1986,7 @@ body{font-family:var(--fb);color:var(--text)}
   <div class="dash-topbar-brand">
     <span>Admin Panel</span>
   </div>
-  <div class="sb-avatar" style="width:32px;height:32px;border-radius:8px;font-size:.82rem">A</div>
+  <button class="btn-outline-sm" id="logoutBtnMobile" type="button"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
 </header>
 
 <main class="dash-main">
@@ -1993,17 +2054,17 @@ body{font-family:var(--fb);color:var(--text)}
 
   <!-- SEARCH STUDENT PAGE -->
   <div class="dash-page" id="page-search">
-    <div class="page-header"><div><div class="page-title">Search Student</div><div class="page-sub">Look up a student by their ID number.</div></div></div>
+    <div class="page-header"><div><div class="page-title">Search Student</div><div class="page-sub">Browse all students and quickly filter by ID number, name, year, or course.</div></div></div>
     <div class="dash-card">
       <div class="sitin-search-panel">
         <i class="fa-solid fa-magnifying-glass" style="color:var(--purple-mid)"></i>
-        <input type="text" id="searchInput" placeholder="Enter student ID number..." maxlength="20" autocomplete="off"/>
+        <input type="text" id="searchInput" placeholder="Search by ID number, name, year, or course..." maxlength="80" autocomplete="off"/>
         <button class="btn-primary-sm" id="doSearchBtn"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
       </div>
-      <div id="searchResultArea" style="display:none"></div>
+      <div id="searchResultArea" style="display:block;margin-top:1rem"></div>
       <div id="searchEmpty" style="text-align:center;padding:2rem;color:var(--muted)">
         <i class="fa-solid fa-user-magnifying-glass" style="font-size:2.5rem;color:#ddd6fe;display:block;margin-bottom:.7rem"></i>
-        <p>Enter a student ID number above to view their profile.</p>
+        <p>Loading students...</p>
       </div>
     </div>
   </div>
@@ -2079,7 +2140,7 @@ body{font-family:var(--fb);color:var(--text)}
             <?php if (empty($sitins)): ?>
             <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem">No active sit-in sessions</div></tr>
             <?php else: foreach ($sitins as $sit): ?>
-            <tr data-sitin-id="<?= $sit['id'] ?>">
+            <tr data-sitin-id="<?= $sit['id'] ?>" data-student-id="<?= (int)$sit['student_id'] ?>">
               <td><code style="font-size:.82rem;background:#f3f0ff;color:var(--purple-mid);padding:.15rem .45rem;border-radius:5px"><?= $sit['id'] ?></code></td>
               <td><?= htmlspecialchars($sit['student_id_number']) ?></div>
               <td><strong><?= htmlspecialchars($sit['first_name'].' '.$sit['last_name']) ?></strong></div>
@@ -2139,7 +2200,7 @@ body{font-family:var(--fb);color:var(--text)}
             try {
               $allSitins = $pdo->query("SELECT s.*, st.id as student_db_id, st.first_name, st.last_name, st.id_number as student_id_number FROM sitins s JOIN students st ON s.student_id = st.id ORDER BY s.time_in DESC LIMIT 200")->fetchAll(PDO::FETCH_ASSOC);
               foreach ($allSitins as $i => $r): ?>
-              <tr data-lab="<?= htmlspecialchars($r['lab'] ?? '') ?>" data-status="<?= htmlspecialchars($r['status'] ?? '') ?>">
+              <tr data-lab="<?= htmlspecialchars($r['lab'] ?? '') ?>" data-status="<?= htmlspecialchars($r['status'] ?? '') ?>" data-student-id="<?= (int)$r['student_db_id'] ?>">
                 <td style="color:var(--muted);font-size:.8rem"><?= $i+1 ?></td>
                 <td><code style="font-size:.82rem;background:#f3f0ff;color:var(--purple-mid);padding:.15rem .45rem;border-radius:5px"><?= htmlspecialchars($r['student_id_number']) ?></code></td>
                 <td><strong><?= htmlspecialchars($r['first_name'].' '.$r['last_name']) ?></strong></td>
@@ -2415,6 +2476,12 @@ body{font-family:var(--fb);color:var(--text)}
               <?php if ($r['status'] === 'pending'): ?>
                 <button class="approve-rsv-btn" data-id="<?= $r['id'] ?>" data-student="<?= htmlspecialchars($r['first_name'].' '.$r['last_name']) ?>" data-lab="<?= htmlspecialchars($r['lab']??'') ?>" data-date="<?= htmlspecialchars($r['date']??'') ?>" data-time="<?= htmlspecialchars($r['time_in']??'') ?>" data-purpose="<?= htmlspecialchars($r['purpose']??'') ?>" data-pc="<?= htmlspecialchars($r['pc_number']??'') ?>" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:none;background:#22c55e;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer"><i class="fa-solid fa-check"></i> Approve</button>
                 <button class="reject-rsv-btn" data-id="<?= $r['id'] ?>" data-student="<?= htmlspecialchars($r['first_name'].' '.$r['last_name']) ?>" data-lab="<?= htmlspecialchars($r['lab']??'') ?>" data-date="<?= htmlspecialchars($r['date']??'') ?>" data-time="<?= htmlspecialchars($r['time_in']??'') ?>" data-purpose="<?= htmlspecialchars($r['purpose']??'') ?>" data-pc="<?= htmlspecialchars($r['pc_number']??'') ?>" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:1.5px solid #fecaca;background:#fef2f2;color:#ef4444;font-size:.75rem;font-weight:600;cursor:pointer"><i class="fa-solid fa-ban"></i> Deny</button>
+              <?php elseif ($r['status'] === 'approved'): ?>
+                <?php if (!empty($r['active_sitin_id'])): ?>
+                <button class="start-rsv-sitin-btn" data-id="<?= $r['id'] ?>" disabled style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:none;background:#0f766e;color:#fff;font-size:.75rem;font-weight:700;cursor:default"><i class="fa-solid fa-circle-check"></i> Sit-in Started</button>
+                <?php else: ?>
+                <button class="start-rsv-sitin-btn" data-id="<?= $r['id'] ?>" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:none;background:#14b8a6;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer"><i class="fa-solid fa-play"></i> Start Sit-in</button>
+                <?php endif; ?>
               <?php endif; ?>
             </div>
           </div>
@@ -2435,6 +2502,8 @@ body{font-family:var(--fb);color:var(--text)}
             <option value="all">All Actions</option>
             <option value="RESERVATION_APPROVED">Approved</option>
             <option value="RESERVATION_DENIED">Denied</option>
+            <option value="SITIN_CREATED">Sit-in Started</option>
+            <option value="SITIN_ENDED">Sit-in Ended</option>
           </select>
           <div class="search-wrap"><i class="fa-solid fa-magnifying-glass"></i><input type="text" class="search-input" id="logsSearch" placeholder="Search logs..."/></div>
         </div>
@@ -2454,6 +2523,8 @@ body{font-family:var(--fb);color:var(--text)}
                   'RESERVATION_APPROVED'  => 'green',
                   'RESERVATION_DENIED'    => 'red',
                   'RESERVATION_CANCELLED' => 'red',
+                  'SITIN_CREATED'         => 'green',
+                  'SITIN_ENDED'           => 'purple',
                 ][$log['action_type']] ?? 'purple';
               ?>
               <tr data-action-type="<?= htmlspecialchars($log['action_type']) ?>">
@@ -2706,6 +2777,7 @@ body{font-family:var(--fb);color:var(--text)}
 <!-- MODALS -->
 <div class="modal-overlay" id="searchModal"><div class="modal-card"><div class="modal-header"><h3><i class="fa-solid fa-id-card"></i> Student Profile</h3><button class="modal-close" id="closeSearchModal"><i class="fa-solid fa-xmark"></i></button></div><div class="modal-body" id="searchModalBody">—</div><div class="modal-footer"><button class="btn-outline-sm" id="closeSearchModal2">Close</button><button class="btn-primary-sm" id="sitInFromSearchBtn"><i class="fa-solid fa-desktop"></i> Start Sit-in</button></div></div></div>
 <div class="modal-overlay" id="studentDetailsModal"><div class="modal-card"><div class="modal-header"><h3><i class="fa-solid fa-user-graduate"></i> Student Details</h3><button class="modal-close" id="closeStudentDetailsModal"><i class="fa-solid fa-xmark"></i></button></div><div class="modal-body" id="studentDetailsBody">—</div><div class="modal-footer"><button class="btn-outline-sm" id="closeStudentDetailsModal2">Close</button></div></div></div>
+<div class="modal-overlay" id="logoutConfirmModal"><div class="modal-card" style="max-width:420px"><div class="modal-header"><h3><i class="fa-solid fa-right-from-bracket" style="color:#ef4444"></i> Confirm Logout</h3><button class="modal-close" id="closeLogoutConfirmModal"><i class="fa-solid fa-xmark"></i></button></div><div class="modal-body"><div style="display:flex;gap:.9rem;align-items:flex-start"><div style="width:44px;height:44px;border-radius:12px;background:#fef2f2;color:#ef4444;display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0"><i class="fa-solid fa-triangle-exclamation"></i></div><div><div style="font-family:var(--ff);font-size:.95rem;font-weight:800;color:var(--text)">Sign out of the admin dashboard?</div><div style="font-size:.82rem;color:var(--muted);margin-top:.35rem;line-height:1.5">You will need to log in again to manage students, sit-ins, reservations, and files.</div></div></div></div><div class="modal-footer"><button class="btn-outline-sm" id="cancelLogoutBtn">Cancel</button><button class="btn-danger-sm" id="confirmLogoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</button></div></div></div>
 <div class="modal-overlay" id="sitinModal"><div class="modal-card"><div class="modal-header"><h3><i class="fa-solid fa-desktop"></i> Sit-in Form</h3><button class="modal-close" id="closeSitinModal"><i class="fa-solid fa-xmark"></i></button></div><div class="modal-body"><input type="hidden" id="sf_db_id"/><div class="form-group"><label>ID Number</label><input type="text" id="sf_id" readonly style="background:#f9fafb"/></div><div class="form-group"><label>Student Name</label><input type="text" id="sf_name" readonly style="background:#f9fafb"/></div><div class="form-group"><label>Purpose</label><select id="sf_purpose"><option value="">Select Purpose</option><option value="C Programming">C Programming</option><option value="Java">Java</option><option value="C#">C#</option><option value="ASP.Net">ASP.Net</option><option value="PHP">PHP</option><option value="Research">Research</option><option value="Project Work">Project Work</option><option value="Online Exam">Online Exam</option></select></div><div class="form-group"><label>Lab</label><select id="sf_lab"><option value="">Select Lab</option><?php foreach($all_labs as $lb): ?><option value="<?= htmlspecialchars($lb['name']) ?>"><?= htmlspecialchars($lb['name']) ?></option><?php endforeach; ?></select></div><div class="form-group" id="sf_pc_wrap" style="display:none"><label>PC Number <span style="font-size:.75rem;color:#9ca3af;font-weight:400">(optional)</span></label><select id="sf_pc_number"><option value="">— Select PC —</option></select><div id="sf_pc_loading" style="display:none;font-size:.78rem;color:var(--muted);margin-top:.3rem"><i class="fa-solid fa-spinner fa-spin"></i> Loading seats…</div></div><div class="form-group"><label>Remaining Session</label><input type="number" id="sf_sessions" readonly style="background:#f9fafb"/></div></div><div class="modal-footer"><button class="btn-outline-sm" id="closeSitinModal2">Cancel</button><button class="btn-primary-sm" id="confirmSitinBtn"><i class="fa-solid fa-right-to-bracket"></i> Start Sit-in</button></div></div></div>
 <div class="modal-overlay" id="editLabModal"><div class="modal-card"><div class="modal-header"><h3><i class="fa-solid fa-building"></i> Edit Laboratory</h3><button class="modal-close" id="closeEditLabModal"><i class="fa-solid fa-xmark"></i></button></div><div class="modal-body"><input type="hidden" id="edit_lab_id"/><div class="form-group"><label>Laboratory Name</label><input type="text" id="edit_lab_name" placeholder="e.g., Lab 546"/></div><div class="form-group"><label>Capacity (seats)</label><input type="number" id="edit_lab_capacity" min="1" max="200"/></div></div><div class="modal-footer"><button class="btn-outline-sm" id="closeEditLabModal2">Cancel</button><button class="btn-primary-sm" id="saveEditLabBtn"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button></div></div></div>
 <div class="modal-overlay" id="editStudentModal"><div class="modal-card"><div class="modal-header"><h3><i class="fa-solid fa-user-pen"></i> Edit Student</h3><button class="modal-close" id="closeEditModal"><i class="fa-solid fa-xmark"></i></button></div><div class="modal-body"><input type="hidden" id="edit_student_id"/><div class="form-row"><div class="form-group"><label>First Name</label><input type="text" id="edit_first"/></div><div class="form-group"><label>Last Name</label><input type="text" id="edit_last"/></div></div><div class="form-row"><div class="form-group"><label>Course</label><select id="edit_course"><option value="BSIT">BSIT – BS Information Technology</option><option value="BSCS">BSCS – BS Computer Science</option><option value="BSIS">BSIS – BS Information Systems</option><option value="BSDA">BSDA – BS Data Analytics</option><option value="ACT">ACT – Associate in Computer Technology</option><option value="BSECE">BSECE – BS Electronics Engineering</option><option value="BSEE">BSEE – BS Electrical Engineering</option><option value="BSCE">BSCE – BS Civil Engineering</option><option value="BSME">BSME – BS Mechanical Engineering</option><option value="BSCpE">BSCpE – BS Computer Engineering</option><option value="BSIE">BSIE – BS Industrial Engineering</option><option value="BSBA">BSBA – BS Business Administration</option><option value="BSED">BSED – BS Education</option><option value="BSPSYCH">BSPSYCH – BS Psychology</option><option value="BSCRIM">BSCRIM – BS Criminology</option><option value="Other">Other</option></select></div><div class="form-group"><label>Year Level</label><select id="edit_year"><option value="1">1st Year</option><option value="2">2nd Year</option><option value="3">3rd Year</option><option value="4">4th Year</option></select></div></div><div class="form-group"><label>Remaining Session</label><input type="number" id="edit_sessions" min="0" max="30"/></div></div><div class="modal-footer"><button class="btn-outline-sm" id="closeEditModal2">Cancel</button><button class="btn-primary-sm" id="saveEditBtn"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button></div></div></div>
@@ -2730,6 +2802,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (id === 'reports') loadAnalyticsCharts();
     if (id === 'reservation') updatePendingBadge();
     if (id === 'controls') loadFiles();
+    if (id === 'search') loadSearchStudents();
     if (id === 'leaderboard') { loadLeaderboard(); }
   }
   sbLinks.forEach(l => l.addEventListener('click', e => {
@@ -2770,19 +2843,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   updatePendingBadge();
 
-  /* USER MENU */
-  const userMenuBtn = document.getElementById('userMenuBtn');
-  const userMenu    = document.getElementById('userMenu');
-  const userChevron = document.getElementById('userChevron');
-  userMenuBtn?.addEventListener('click', e => { e.stopPropagation(); const open = userMenu.classList.toggle('open'); userChevron?.classList.toggle('open', open); });
-  document.addEventListener('click', e => { if (!userMenuBtn?.contains(e.target) && !userMenu?.contains(e.target)) { userMenu?.classList.remove('open'); userChevron?.classList.remove('open'); } });
-
   /* LOGOUT */
-  document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+  async function doAdminLogout() {
     const fd = new FormData(); fd.append('_action','logout');
     try { await fetch('admin.php', { method:'POST', body:fd }); } catch {}
     window.location.href = 'login.php';
-  });
+  }
+  function openLogoutConfirm() { openModal('logoutConfirmModal'); }
+  document.getElementById('logoutBtn')?.addEventListener('click', openLogoutConfirm);
+  document.getElementById('logoutBtnMobile')?.addEventListener('click', openLogoutConfirm);
 
   /* MOBILE SIDEBAR */
   const sidebar        = document.getElementById('sidebar');
@@ -2894,6 +2963,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('editStudentModal')?.addEventListener('click', e => { if(e.target.id==='editStudentModal') closeModal('editStudentModal'); });
   ['closeStudentDetailsModal','closeStudentDetailsModal2'].forEach(id => document.getElementById(id)?.addEventListener('click', () => closeModal('studentDetailsModal')));
   document.getElementById('studentDetailsModal')?.addEventListener('click', e => { if(e.target.id==='studentDetailsModal') closeModal('studentDetailsModal'); });
+  ['closeLogoutConfirmModal','cancelLogoutBtn'].forEach(id => document.getElementById(id)?.addEventListener('click', () => closeModal('logoutConfirmModal')));
+  document.getElementById('logoutConfirmModal')?.addEventListener('click', e => { if(e.target.id==='logoutConfirmModal') closeModal('logoutConfirmModal'); });
+  document.getElementById('confirmLogoutBtn')?.addEventListener('click', doAdminLogout);
   ['closeAddModal','closeAddModal2'].forEach(id => document.getElementById(id)?.addEventListener('click', () => closeModal('addStudentModal')));
   document.getElementById('addStudentModal')?.addEventListener('click', e => { if(e.target.id==='addStudentModal') closeModal('addStudentModal'); });
 
@@ -3077,7 +3149,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!data.success) return;
       const tbody = document.getElementById('logsTableBody');
       if (!tbody) return;
-      const actionColors = { RESERVATION_APPROVED:'green', RESERVATION_DENIED:'red', RESERVATION_CANCELLED:'red' };
+      const actionColors = {
+        RESERVATION_APPROVED:'green',
+        RESERVATION_DENIED:'red',
+        RESERVATION_CANCELLED:'red',
+        SITIN_CREATED:'green',
+        SITIN_ENDED:'purple'
+      };
       tbody.innerHTML = data.logs.length === 0
         ? '<tr><td colspan="5" style="text-align:center;padding:3rem;color:var(--muted)"><i class="fa-solid fa-scroll" style="font-size:2rem;color:#ddd6fe;display:block;margin-bottom:.7rem"></i>No activity logs yet.</div></tr>'
         : data.logs.map((log,i) => {
@@ -3109,22 +3187,44 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('refreshLogsBtn')?.addEventListener('click', () => { showToast('Logs refreshed.','success'); loadActivityLogs(); });
 
   /* RESERVATION CARD ACTIONS */
+  async function openStudentDetails(studentId) {
+    const normalizedId = Number(studentId || 0);
+    if (!normalizedId) {
+      showToast('Student profile could not be loaded.', 'error');
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append('_action', 'view_student_details');
+    fd.append('student_id', String(normalizedId));
+
+    try {
+      const res = await fetch('admin.php', { method:'POST', body:fd });
+      const data = await res.json();
+      if (!data.success) {
+        showToast(data.message || 'Student not found.', 'error');
+        return;
+      }
+
+      const photoHtml = data.photo
+        ? `<img src="${data.photo}" style="width:100%;height:100%;object-fit:cover" alt="avatar"/>`
+        : (data.name || '?').charAt(0).toUpperCase();
+      const photoStyle = data.photo ? 'background:none;padding:0;overflow:hidden' : '';
+      document.getElementById('studentDetailsBody').innerHTML = `<div style="display:flex;align-items:center;gap:1rem;padding:.8rem 1rem;background:linear-gradient(135deg,#faf8ff,#f5f3ff);border-radius:12px;margin-bottom:1rem"><div style="width:58px;height:58px;border-radius:13px;background:linear-gradient(135deg,var(--purple-mid),var(--purple-light));color:#fff;font-family:var(--ff);font-size:1.3rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;${photoStyle}">${photoHtml}</div><div style="flex:1"><div style="font-family:var(--ff);font-size:.92rem;font-weight:800;color:var(--text)">${data.name}</div><div style="font-size:.79rem;color:var(--purple-mid);font-weight:600;margin-top:.1rem">${data.course} — ${data.year}</div><div style="font-size:.74rem;color:var(--muted);margin-top:.1rem">ID: ${data.id_number}</div></div><div style="text-align:center"><div style="font-family:var(--ff);font-size:1.45rem;font-weight:800;color:var(--purple-mid)">${data.remaining_session}</div><div style="font-size:.69rem;color:var(--muted)">Sessions Left</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#f0ecff;border-radius:10px;overflow:hidden"><div style="background:#fff;padding:.75rem 1rem"><div style="font-size:.69rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:.2rem">Course</div><div style="font-size:.84rem;font-weight:600">${data.course}</div></div><div style="background:#fff;padding:.75rem 1rem"><div style="font-size:.69rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:.2rem">Year Level</div><div style="font-size:.84rem;font-weight:600">${data.year}</div></div><div style="background:#fff;padding:.75rem 1rem;grid-column:1/-1"><div style="font-size:.69rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:.2rem">Email</div><div style="font-size:.84rem;font-weight:600">${data.email}</div></div><div style="background:#fff;padding:.75rem 1rem;grid-column:1/-1"><div style="font-size:.69rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:.2rem">Address</div><div style="font-size:.84rem;font-weight:600">${data.address || '—'}</div></div><div style="background:#fff;padding:.75rem 1rem;grid-column:1/-1"><div style="font-size:.69rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:.2rem">Sessions Used</div><div style="font-size:.84rem;font-weight:600">${data.used_sessions}</div></div></div>`;
+      openModal('studentDetailsModal');
+    } catch {
+      showToast('Server error.', 'error');
+    }
+  }
+
   function initReservationCardActions() {
     document.querySelectorAll('.view-student-btn').forEach(btn => {
       if (btn.hasAttribute('data-bound')) return;
       btn.setAttribute('data-bound', 'true');
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
-        const fd = new FormData(); fd.append('_action','view_student_details'); fd.append('student_id', btn.dataset.studentId);
-        try {
-          const res = await fetch('admin.php',{method:'POST',body:fd}); const data = await res.json();
-          if (data.success) {
-            const photoHtml = data.photo ? `<img src="${data.photo}" style="width:100%;height:100%;object-fit:cover" alt="avatar"/>` : data.name.charAt(0).toUpperCase();
-            const photoStyle = data.photo ? 'background:none;padding:0;overflow:hidden' : '';
-            document.getElementById('studentDetailsBody').innerHTML = `<div style="display:flex;align-items:center;gap:1rem;padding:.8rem 1rem;background:linear-gradient(135deg,#faf8ff,#f5f3ff);border-radius:12px;margin-bottom:1rem"><div style="width:58px;height:58px;border-radius:13px;background:linear-gradient(135deg,var(--purple-mid),var(--purple-light));color:#fff;font-family:var(--ff);font-size:1.3rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;${photoStyle}">${photoHtml}</div><div style="flex:1"><div style="font-family:var(--ff);font-size:.92rem;font-weight:800;color:var(--text)">${data.name}</div><div style="font-size:.79rem;color:var(--purple-mid);font-weight:600;margin-top:.1rem">${data.course} — ${data.year}</div><div style="font-size:.74rem;color:var(--muted);margin-top:.1rem">ID: ${data.id_number}</div></div><div style="text-align:center"><div style="font-family:var(--ff);font-size:1.45rem;font-weight:800;color:var(--purple-mid)">${data.remaining_session}</div><div style="font-size:.69rem;color:var(--muted)">Sessions Left</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#f0ecff;border-radius:10px;overflow:hidden"><div style="background:#fff;padding:.75rem 1rem"><div style="font-size:.69rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:.2rem">Course</div><div style="font-size:.84rem;font-weight:600">${data.course}</div></div><div style="background:#fff;padding:.75rem 1rem"><div style="font-size:.69rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:.2rem">Year Level</div><div style="font-size:.84rem;font-weight:600">${data.year}</div></div><div style="background:#fff;padding:.75rem 1rem;grid-column:1/-1"><div style="font-size:.69rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:.2rem">Email</div><div style="font-size:.84rem;font-weight:600">${data.email}</div></div><div style="background:#fff;padding:.75rem 1rem;grid-column:1/-1"><div style="font-size:.69rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:.2rem">Sessions Used</div><div style="font-size:.84rem;font-weight:600">${data.used_sessions}</div></div></div>`;
-            openModal('studentDetailsModal');
-          } else showToast(data.message,'error');
-        } catch { showToast('Server error.','error'); }
+        const studentId = btn.dataset.studentId || btn.closest('[data-student-id]')?.dataset.studentId || '';
+        openStudentDetails(studentId);
       });
     });
     document.querySelectorAll('.approve-rsv-btn').forEach(btn => {
@@ -3162,12 +3262,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     });
+    document.querySelectorAll('.start-rsv-sitin-btn').forEach(btn => {
+      if (btn.hasAttribute('data-bound')) return;
+      btn.setAttribute('data-bound', 'true');
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (!confirm('Start sit-in for this approved reservation?')) return;
+        const fd = new FormData();
+        fd.append('_action', 'start_sitin_from_reservation');
+        fd.append('reservation_id', btn.dataset.id);
+        btn.disabled = true;
+        const original = btn.innerHTML;
+        let started = false;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Starting…';
+        try {
+          const res = await fetch('admin.php', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (data.success) {
+            window.showAdminToast && window.showAdminToast(data.message, 'success');
+            if (data.sitin) injectNewSitin(data.sitin);
+            triggerSitinRefresh && triggerSitinRefresh();
+            updateCardAfterSitinStart(btn.dataset.id);
+            started = true;
+          } else {
+            window.showAdminToast && window.showAdminToast(data.message || 'Could not start sit-in.', 'error');
+          }
+        } catch {
+          window.showAdminToast && window.showAdminToast('Server error.', 'error');
+        } finally {
+          if (!started) {
+            btn.disabled = false;
+            btn.innerHTML = original;
+          }
+        }
+      });
+    });
   }
   window.initReservationCardActions = initReservationCardActions;
   initReservationCardActions();
+  loadSearchStudents();
 
   /* SEARCH STUDENT */
   let currentSearchData = null;
+  let _searchStudentsSnapshot = '';
   async function runSearch(idNum) {
     if (!idNum) { showToast('Please enter an ID number.','error'); return; }
     const fd = new FormData(); fd.append('_action','search_student'); fd.append('id_number',idNum);
@@ -3181,8 +3318,91 @@ document.addEventListener('DOMContentLoaded', () => {
       openModal('searchModal');
     } catch { showToast('Server error.','error'); }
   }
-  document.getElementById('doSearchBtn')?.addEventListener('click', () => runSearch(document.getElementById('searchInput')?.value.trim()));
-  document.getElementById('searchInput')?.addEventListener('keydown', e => { if(e.key==='Enter') runSearch(document.getElementById('searchInput').value.trim()); });
+  function renderSearchStudents(students) {
+    if (!students.length) {
+      return `<div style="text-align:center;padding:2.5rem;color:var(--muted)"><i class="fa-solid fa-users-slash" style="font-size:2rem;color:#ddd6fe;display:block;margin-bottom:.7rem"></i>No students found.</div>`;
+    }
+    return `<div class="table-wrap"><table class="data-table" id="searchStudentsTable"><thead><tr><th>ID Number</th><th>Name</th><th>Year Level</th><th>Course</th><th>Remaining Session</th><th>Actions</th></tr></thead><tbody>${students.map(s => `<tr data-student-id="${s.id}"><td><code style="font-size:.82rem;background:#f3f0ff;color:var(--purple-mid);padding:.15rem .45rem;border-radius:5px">${escHtml(s.id_number)}</code></td><td><strong>${escHtml(s.first_name + ' ' + s.last_name)}</strong></td><td>${escHtml(String(s.year_level))}</td><td><span class="badge purple">${escHtml(s.course)}</span></td><td>${s.remaining_session ?? 30}</td><td><button class="btn-outline-sm search-view-student-btn" data-student-id="${s.id}"><i class="fa-solid fa-eye"></i> View Profile</button></td></tr>`).join('')}</tbody></table></div>`;
+  }
+  function bindSearchStudentButtons() {
+    document.querySelectorAll('.search-view-student-btn').forEach(btn => {
+      if (btn.hasAttribute('data-bound')) return;
+      btn.setAttribute('data-bound', 'true');
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        openStudentDetails(btn.dataset.studentId || btn.closest('[data-student-id]')?.dataset.studentId || '');
+      });
+    });
+  }
+  function applySearchStudentFilter() {
+    const q = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+    const rows = document.querySelectorAll('#searchStudentsTable tbody tr');
+    const empty = document.getElementById('searchEmpty');
+    if (!rows.length) return;
+    let visible = 0;
+    rows.forEach(row => {
+      const match = !q || row.textContent.toLowerCase().includes(q);
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (!empty) return;
+    if (visible === 0) {
+      empty.style.display = 'block';
+      empty.innerHTML = `<i class="fa-solid fa-user-slash" style="font-size:2rem;color:#ddd6fe;display:block;margin-bottom:.7rem"></i><p>No students matched your search.</p>`;
+    } else {
+      empty.style.display = 'none';
+    }
+  }
+  async function loadSearchStudents(force = false) {
+    const area = document.getElementById('searchResultArea');
+    const empty = document.getElementById('searchEmpty');
+    if (!area) return;
+    try {
+      const fd = new FormData(); fd.append('_action', 'get_students');
+      const res = await fetch('admin.php', { method:'POST', body:fd });
+      const data = await res.json();
+      if (!data.success) return;
+      const students = Array.isArray(data.students) ? data.students : [];
+      const snapshot = JSON.stringify(students);
+      if (!force && snapshot === _searchStudentsSnapshot) {
+        applySearchStudentFilter();
+        return;
+      }
+      _searchStudentsSnapshot = snapshot;
+      area.innerHTML = renderSearchStudents(students);
+      area.style.display = 'block';
+      if (empty) empty.style.display = students.length ? 'none' : 'block';
+      bindSearchStudentButtons();
+      applySearchStudentFilter();
+    } catch {
+      if (empty) {
+        empty.style.display = 'block';
+        empty.innerHTML = '<i class="fa-solid fa-circle-xmark" style="font-size:2rem;color:#fca5a5;display:block;margin-bottom:.7rem"></i><p>Failed to load students.</p>';
+      }
+    }
+  }
+  document.getElementById('doSearchBtn')?.addEventListener('click', () => {
+    const q = document.getElementById('searchInput')?.value.trim() || '';
+    if (!document.querySelector('#searchStudentsTable tbody tr')) {
+      loadSearchStudents(true);
+      return;
+    }
+    applySearchStudentFilter();
+    if (q) {
+      const exactRow = Array.from(document.querySelectorAll('#searchStudentsTable tbody tr')).find(row => {
+        const code = row.querySelector('code');
+        return code && code.textContent.trim() === q;
+      });
+      if (exactRow) {
+        exactRow.scrollIntoView({ behavior:'smooth', block:'center' });
+        exactRow.style.transition = 'box-shadow .18s';
+        exactRow.style.boxShadow = 'inset 0 0 0 9999px rgba(108,63,207,.08)';
+        setTimeout(() => { exactRow.style.boxShadow = ''; }, 1300);
+      }
+    }
+  });
+  document.getElementById('searchInput')?.addEventListener('input', applySearchStudentFilter);
+  document.getElementById('searchInput')?.addEventListener('keydown', e => { if(e.key==='Enter') { e.preventDefault(); document.getElementById('doSearchBtn')?.click(); } });
   document.getElementById('sitInFromSearchBtn')?.addEventListener('click', () => {
     if (!currentSearchData) return;
     document.getElementById('sf_db_id').value = currentSearchData.student_db_id;
@@ -3825,9 +4045,9 @@ document.addEventListener('DOMContentLoaded', () => {
   (function startPolling() {
     const INTERVAL = 5000;
     let isPolling = false;
-    function renderSitinRow(sit) { return `<tr data-sitin-id="${sit.id}"><td><code style="font-size:.82rem;background:#f3f0ff;color:var(--purple-mid);padding:.15rem .45rem;border-radius:5px">${sit.id}</code></div><td>${sit.student_id_number}</div><td><strong>${sit.first_name} ${sit.last_name}</strong></div><td>${sit.purpose??'—'}</div><td><span class="badge purple">${sit.lab??'—'}</span></div><td>${sit.remaining_session??'—'}</div><td><span class="badge green"><i class="fa-solid fa-circle"></i> Active</span></div><td><button class="btn-end end-sitin-btn" data-id="${sit.id}"><i class="fa-solid fa-right-from-bracket"></i> End</button></div></tr>`; }
-    function renderRecordRow(r,i) { const sc=r.status==='active'?'green':r.status==='done'?'purple':'red'; const ti=r.time_in?new Date(r.time_in.replace(' ','T')).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—'; const to=r.time_out?new Date(r.time_out.replace(' ','T')).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—'; return `<tr data-lab="${r.lab??''}" data-status="${r.status??''}"><td style="color:var(--muted);font-size:.8rem">${i+1}</div><td><code style="font-size:.82rem;background:#f3f0ff;color:var(--purple-mid);padding:.15rem .45rem;border-radius:5px">${r.student_id_number}</code></div><td><strong>${r.first_name} ${r.last_name}</strong></div><td>${r.purpose??'—'}</div><td><span class="badge purple">${r.lab??'—'}</span></div><td>${ti}</div><td>${to}</div><td><span class="badge ${sc}">${r.status.charAt(0).toUpperCase()+r.status.slice(1)}</span></div><td><button class="btn-view-student view-student-btn" data-student-id="${r.student_id??''}"><i class="fa-solid fa-eye"></i> View</button></div></tr>`; }
-    function bindEndButtons() { document.querySelectorAll('.end-sitin-btn:not([data-bound])').forEach(btn => { btn.setAttribute('data-bound','1'); btn.addEventListener('click', async () => { if (!confirm('End this sit-in session?')) return; const fd=new FormData(); fd.append('_action','end_sitin'); fd.append('sitin_id',btn.dataset.id); try { const res=await fetch('admin.php',{method:'POST',body:fd}); const data=await res.json(); if(data.success){showToast('Sit-in ended.','success'); const row=btn.closest('tr'); if(row){ const studentId=row.querySelector('[data-student-id]')?.dataset?.studentId; if(studentId){ const rsvCard=document.querySelector(`.reservation-card[data-student-id="${studentId}"][data-status="approved"]`); if(rsvCard){ rsvCard.dataset.status='done'; const badge=rsvCard.querySelector('.status-badge-res'); if(badge){badge.style.background='#6c3fcf';badge.textContent='Completed';} } } row.remove(); } await doPoll();}else showToast(data.message,'error'); } catch { showToast('Server error.','error'); } }); }); }
+    function renderSitinRow(sit) { return `<tr data-sitin-id="${sit.id}" data-student-id="${sit.student_id??''}"><td><code style="font-size:.82rem;background:#f3f0ff;color:var(--purple-mid);padding:.15rem .45rem;border-radius:5px">${sit.id}</code></div><td>${sit.student_id_number}</div><td><strong>${sit.first_name} ${sit.last_name}</strong></div><td>${sit.purpose??'—'}</div><td><span class="badge purple">${sit.lab??'—'}</span></div><td>${sit.remaining_session??'—'}</div><td><span class="badge green"><i class="fa-solid fa-circle"></i> Active</span></div><td><button class="btn-end end-sitin-btn" data-id="${sit.id}"><i class="fa-solid fa-right-from-bracket"></i> End</button></div></tr>`; }
+    function renderRecordRow(r,i) { const sc=r.status==='active'?'green':r.status==='done'?'purple':'red'; const ti=r.time_in?new Date(r.time_in.replace(' ','T')).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—'; const to=r.time_out?new Date(r.time_out.replace(' ','T')).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—'; return `<tr data-lab="${r.lab??''}" data-status="${r.status??''}" data-student-id="${r.student_id??''}"><td style="color:var(--muted);font-size:.8rem">${i+1}</div><td><code style="font-size:.82rem;background:#f3f0ff;color:var(--purple-mid);padding:.15rem .45rem;border-radius:5px">${r.student_id_number}</code></div><td><strong>${r.first_name} ${r.last_name}</strong></div><td>${r.purpose??'—'}</div><td><span class="badge purple">${r.lab??'—'}</span></div><td>${ti}</div><td>${to}</div><td><span class="badge ${sc}">${r.status.charAt(0).toUpperCase()+r.status.slice(1)}</span></div><td><button class="btn-view-student view-student-btn" data-student-id="${r.student_id??''}"><i class="fa-solid fa-eye"></i> View</button></div></tr>`; }
+    function bindEndButtons() { document.querySelectorAll('.end-sitin-btn:not([data-bound])').forEach(btn => { btn.setAttribute('data-bound','1'); btn.addEventListener('click', async () => { if (!confirm('End this sit-in session?')) return; const fd=new FormData(); fd.append('_action','end_sitin'); fd.append('sitin_id',btn.dataset.id); try { const res=await fetch('admin.php',{method:'POST',body:fd}); const data=await res.json(); if(data.success){showToast('Sit-in ended.','success'); const row=btn.closest('tr'); if(row){ const studentId=row.dataset.studentId; if(studentId){ const rsvCard=document.querySelector(`.reservation-card[data-student-id="${studentId}"][data-status="approved"]`); if(rsvCard){ rsvCard.dataset.status='done'; const badge=rsvCard.querySelector('.status-badge-res'); if(badge){badge.style.background='#6c3fcf';badge.textContent='Completed';} applyReservationFilters && applyReservationFilters(); } } row.remove(); } await doPoll();}else showToast(data.message,'error'); } catch { showToast('Server error.','error'); } }); }); }
     async function doPoll() {
       if (isPolling) return; isPolling=true;
       try {
@@ -3841,7 +4061,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const domIds=new Set([...sitinTbody.querySelectorAll('tr[data-sitin-id]')].map(r=>r.dataset.sitinId));
           const liveIds=new Set(data.sitins.map(s=>String(s.id)));
           domIds.forEach(id=>{ if(!liveIds.has(id)) sitinTbody.querySelector(`tr[data-sitin-id="${id}"]`)?.remove(); });
-          data.sitins.forEach(sit=>{ if(!domIds.has(String(sit.id))){ const empty=sitinTbody.querySelector('td[colspan]')?.closest('tr'); if(empty) empty.remove(); sitinTbody.insertAdjacentHTML('afterbegin',renderSitinRow(sit)); } });
+          data.sitins.forEach(sit=>{ if(!domIds.has(String(sit.id))){ const empty=sitinTbody.querySelector('td[colspan]')?.closest('tr'); if(empty) empty.remove(); sitinTbody.insertAdjacentHTML('beforeend',renderSitinRow(sit)); } });
           if(data.sitins.length===0&&sitinTbody.querySelectorAll('tr[data-sitin-id]').length===0&&!sitinTbody.querySelector('td[colspan]')) sitinTbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem">No active sit-in sessions</div><td>';
           bindEndButtons();
           updatePagination('sitin');
@@ -3879,6 +4099,10 @@ document.addEventListener('DOMContentLoaded', () => {
           let actionButtons = '';
           if (r.status === 'pending') {
             actionButtons = `<button class="approve-rsv-btn" data-id="${r.id}" data-student="${(r.first_name||'')+' '+(r.last_name||'')}" data-lab="${labVal}" data-date="${r.date||''}" data-time="${r.time_in||''}" data-purpose="${(r.purpose||'').replace(/"/g,'&quot;')}" data-pc="${r.pc_number||''}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:none;background:#22c55e;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer"><i class="fa-solid fa-check"></i> Approve</button><button class="reject-rsv-btn" data-id="${r.id}" data-student="${(r.first_name||'')+' '+(r.last_name||'')}" data-lab="${labVal}" data-date="${r.date||''}" data-time="${r.time_in||''}" data-purpose="${(r.purpose||'').replace(/"/g,'&quot;')}" data-pc="${r.pc_number||''}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:1.5px solid #fecaca;background:#fef2f2;color:#ef4444;font-size:.75rem;font-weight:600;cursor:pointer"><i class="fa-solid fa-ban"></i> Deny</button>`;
+          } else if (r.status === 'approved') {
+            actionButtons = r.active_sitin_id
+              ? `<button class="start-rsv-sitin-btn" data-id="${r.id}" disabled style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:none;background:#0f766e;color:#fff;font-size:.75rem;font-weight:700;cursor:default"><i class="fa-solid fa-circle-check"></i> Sit-in Started</button>`
+              : `<button class="start-rsv-sitin-btn" data-id="${r.id}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:none;background:#14b8a6;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer"><i class="fa-solid fa-play"></i> Start Sit-in</button>`;
           }
           cardsHtml += `<div class="reservation-card" data-status="${r.status}" data-lab="${labVal}" data-student-id="${r.student_db_id}" data-reservation-id="${r.id}">
             <div style="background:linear-gradient(135deg,#6c3fcf,#a259f7);padding:0.9rem 1.2rem;color:#fff">
@@ -4832,7 +5056,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const pcLabel = data.assigned_pc ? ' (PC-'+String(data.assigned_pc).padStart(2,'0')+')' : '';
         window.showAdminToast && window.showAdminToast(data.message+pcLabel,'success');
         updateCardAfterApprove(_rsvId, data.assigned_pc, _labName);
-        if (data.sitin_created && data.sitin_data) injectNewSitin(data);
         triggerSitinRefresh && triggerSitinRefresh();
         if (typeof updatePendingBadge === 'function') updatePendingBadge();
       } else {
@@ -4863,9 +5086,36 @@ document.addEventListener('DOMContentLoaded', () => {
       let extras = '';
       if (assignedPc) extras += `<div style="font-size:.72rem;color:#16a34a;font-weight:700;text-align:center;width:100%;padding-top:.2rem"><i class="fa-solid fa-desktop"></i> PC-${String(assignedPc).padStart(2,'0')}</div>`;
       if (assignedLab) extras += `<div style="font-size:.72rem;color:#6c3fcf;font-weight:700;text-align:center;width:100%;padding-top:.1rem"><i class="fa-solid fa-building"></i> ${assignedLab}</div>`;
-      btnArea.innerHTML = `<button class="view-student-btn" data-student-id="${sid}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:#4b5563;font-size:.75rem;font-weight:600;cursor:pointer"><i class="fa-solid fa-eye"></i> View</button>${extras}`;
+      btnArea.innerHTML = `<button class="view-student-btn" data-student-id="${sid}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:#4b5563;font-size:.75rem;font-weight:600;cursor:pointer"><i class="fa-solid fa-eye"></i> View</button><button class="start-rsv-sitin-btn" data-id="${rsvId}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:none;background:#14b8a6;color:#fff;font-size:.75rem;font-weight:700;cursor:pointer"><i class="fa-solid fa-play"></i> Start Sit-in</button>${extras}`;
       window.initReservationCardActions && window.initReservationCardActions();
     }
+  }
+
+  function updateCardAfterSitinStart(rsvId) {
+    const card = document.querySelector(`.reservation-card[data-reservation-id="${rsvId}"]`);
+    if (!card) return;
+    const btn = card.querySelector('.start-rsv-sitin-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Sit-in Started';
+      btn.style.background = '#0f766e';
+      btn.style.cursor = 'default';
+    }
+  }
+
+  function injectNewSitin(sit) {
+    const tbody = document.querySelector('#sitinTable tbody');
+    if (!tbody || !sit || !sit.id) return;
+    const empty = tbody.querySelector('td[colspan]')?.closest('tr');
+    if (empty) empty.remove();
+    if (tbody.querySelector(`tr[data-sitin-id="${sit.id}"]`)) return;
+    tbody.insertAdjacentHTML('beforeend', renderSitinRow(sit));
+    bindEndButtons();
+    const elCur = document.getElementById('stat-currently');
+    const elTot = document.getElementById('stat-total-sitin');
+    if (elCur) elCur.textContent = String((parseInt(elCur.textContent || '0', 10) || 0) + 1);
+    if (elTot) elTot.textContent = String((parseInt(elTot.textContent || '0', 10) || 0) + 1);
+    if (typeof updatePagination === 'function') updatePagination('sitin');
   }
 
   function updateCardAfterReject(rsvId) {
@@ -4876,29 +5126,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnArea = card.querySelector('div[style*="border-top"]');
     const sid = card.dataset.studentId;
     if (btnArea) { btnArea.innerHTML = `<button class="view-student-btn" data-student-id="${sid}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.5rem;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:#4b5563;font-size:.75rem;font-weight:600;cursor:pointer"><i class="fa-solid fa-eye"></i> View</button>`; window.initReservationCardActions && window.initReservationCardActions(); }
-  }
-
-  function injectNewSitin(data) {
-    const sd = data.sitin_data;
-    if (!sd) return;
-    const tbody = document.querySelector('#sitinTable tbody');
-    if (!tbody) return;
-    const empty = tbody.querySelector('td[colspan]')?.closest('tr'); if(empty) empty.remove();
-    if (!tbody.querySelector(`tr[data-sitin-id="${sd.id}"]`)) {
-      const tr = document.createElement('tr');
-      tr.setAttribute('data-sitin-id', sd.id);
-      const pcLabel = sd.pc_number ? ' PC-'+String(sd.pc_number).padStart(2,'0') : '';
-      tr.innerHTML = `<td><code style="font-size:.82rem;background:#f3f0ff;color:var(--purple-mid);padding:.15rem .45rem;border-radius:5px">${sd.id}</code></td><td>${sd.student_id_number}</td><td><strong>${sd.first_name} ${sd.last_name}</strong></td><td>${sd.purpose}</td><td><span class="badge purple">${sd.lab}${pcLabel}</span></td><td>${sd.remaining_session}</td><td><span class="badge green"><i class="fa-solid fa-circle"></i> Active</span></td><td><button class="btn-end end-sitin-btn" data-id="${sd.id}"><i class="fa-solid fa-right-from-bracket"></i> End</button></td>`;
-      tbody.prepend(tr);
-      tr.querySelector('.end-sitin-btn')?.addEventListener('click', async () => {
-        if(!confirm('End this sit-in?')) return;
-        const fd=new FormData(); fd.append('_action','end_sitin'); fd.append('sitin_id',sd.id);
-        const r=await fetch('admin.php',{method:'POST',body:fd}); const d=await r.json();
-        if(d.success){window.showAdminToast&&window.showAdminToast('Sit-in ended.','success');tr.remove();triggerSitinRefresh&&triggerSitinRefresh();}
-      });
-    }
-    const cs=document.getElementById('stat-currently'); if(cs) cs.textContent=parseInt(cs.textContent||0)+1;
-    const ts=document.getElementById('stat-total-sitin'); if(ts) ts.textContent=parseInt(ts.textContent||0)+1;
   }
 
   window.openSeatmapApproval = openSeatmap;
@@ -4983,7 +5210,17 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       progressBar.style.width = '70%';
       const res  = await fetch('admin.php',{method:'POST',body:fd});
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); }
+      catch (e) {
+        console.error('Upload raw response:', text);
+        showToast('Upload finished, but the server returned an invalid response.','info');
+        fileInput.value=''; selectedLbl.style.display='none'; descInput.value='';
+        uploadBtn.disabled = true;
+        loadFiles();
+        return;
+      }
       progressBar.style.width = '100%';
       setTimeout(() => { progressWrap.style.display='none'; progressBar.style.width='0'; }, 500);
       if (data.success) {
@@ -5077,7 +5314,16 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       showToast('Replacing file…', 'info');
       const res  = await fetch('admin.php', {method:'POST', body:fd});
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); }
+      catch (e) {
+        console.error('Replace raw response:', text);
+        showToast('File replaced, but the server returned an invalid response.', 'info');
+        loadFiles();
+        _replaceTargetId = null;
+        return;
+      }
       if (data.success) { showToast('File replaced successfully!', 'success'); loadFiles(); }
       else showToast(data.message || 'Replace failed.', 'error');
     } catch { showToast('Server error during replace.', 'error'); }

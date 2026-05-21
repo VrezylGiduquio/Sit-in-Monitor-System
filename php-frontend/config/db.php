@@ -146,7 +146,7 @@ try {
             pc_number INT DEFAULT NULL,
             admin_pc INT DEFAULT NULL,
             software_needed TEXT DEFAULT NULL,
-            status ENUM('pending','approved','cancelled') NOT NULL DEFAULT 'pending',
+            status ENUM('pending','approved','done','cancelled') NOT NULL DEFAULT 'pending',
             rejection_reason VARCHAR(255) DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             KEY idx_res_student (student_id),
@@ -240,6 +240,16 @@ try {
     ensureColumn($pdo, 'reservations', 'admin_pc', "INT DEFAULT NULL AFTER `pc_number`");
     ensureColumn($pdo, 'reservations', 'software_needed', "TEXT DEFAULT NULL AFTER `admin_pc`");
     ensureColumn($pdo, 'reservations', 'rejection_reason', "VARCHAR(255) DEFAULT NULL AFTER `status`");
+    try {
+        $pdo->exec("ALTER TABLE reservations MODIFY COLUMN status ENUM('pending','approved','done','cancelled') NOT NULL DEFAULT 'pending'");
+    } catch (Exception $e) {
+        // Ignore if the schema is already aligned or the table is unavailable during bootstrap.
+    }
+    ensureColumn($pdo, 'sitins', 'pc_number', "INT DEFAULT NULL AFTER `lab`");
+    ensureColumn($pdo, 'sitins', 'remaining_session', "INT NOT NULL DEFAULT 30 AFTER `pc_number`");
+    ensureColumn($pdo, 'sitins', 'status', "ENUM('active','done') NOT NULL DEFAULT 'active' AFTER `remaining_session`");
+    ensureColumn($pdo, 'sitins', 'time_out', "DATETIME DEFAULT NULL AFTER `time_in`");
+    ensureColumn($pdo, 'sitins', 'created_at', "TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER `time_out`");
 
     $pdo->exec("INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('reservation_enabled', '1')");
     seedLabs($pdo);
