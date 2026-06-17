@@ -1774,7 +1774,7 @@ body{font-family:var(--fb);color:var(--text)}
 .tbl-page-btn{width:30px;height:30px;border-radius:7px;border:1.5px solid #e9d5ff;background:#fff;color:var(--purple-mid);font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
 .tbl-page-btn:hover:not(:disabled){background:#f3e8ff;border-color:var(--purple-mid)}
 .tbl-page-btn:disabled{color:#d1d5db;border-color:#f3f4f6;cursor:not-allowed;background:#fafafa}
-.modal-overlay{position:fixed;inset:0;background:rgba(15,10,40,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .22s;padding:1rem}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,10,40,.55);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .22s;padding:2rem 1rem;overflow-y:auto}
 .modal-overlay.open{opacity:1;pointer-events:all}
 .modal-card{background:var(--white);border-radius:20px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,.22);transform:translateY(14px);transition:transform .24s;overflow:hidden}
 .modal-overlay.open .modal-card{transform:translateY(0)}

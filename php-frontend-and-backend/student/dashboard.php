@@ -1172,7 +1172,7 @@ linear-gradient(135deg,#0b2f33 0%,#0f766e 52%,#14b8a6 100%);border-radius:26px;p
 .btn-primary-sm:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(108,63,207,.4)}
 
 /* Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:none;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:none;align-items:flex-start;justify-content:center;padding:2rem 1rem;backdrop-filter:blur(2px);overflow-y:auto}
 .modal-overlay.open{display:flex}
 .modal-card{background:#fff;border-radius:20px;padding:1.8rem;width:100%;max-width:520px;box-shadow:0 24px 64px rgba(0,0,0,.2);animation:fadeUp .25s ease both}
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.3rem}
