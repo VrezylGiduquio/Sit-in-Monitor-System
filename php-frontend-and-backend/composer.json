@@ -1,6 +1,7 @@
 {
     "require": {
         "tecnickcom/tcpdf": "^6.11",
-        "phpoffice/phpspreadsheet": "^5.7"
+        "phpoffice/phpspreadsheet": "^5.7",
+        "turso/libsql": "^0.4"
     }
 }

@@ -1,0 +1,27 @@
+# Dependencies (Vercel installs them during build)
+vendor/
+php-frontend-and-backend/vendor/
+node_modules/
+
+# Environment files (sensitive credentials)
+.env
+.env.local
+.env.*.local
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Local test scripts
+test_*.php

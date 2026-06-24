@@ -1,8 +1,5 @@
-CREATE DATABASE IF NOT EXISTS `sitin-system`
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
 
-USE `sitin-system`;
+
 
 CREATE TABLE IF NOT EXISTS students (
   id INT AUTO_INCREMENT PRIMARY KEY,
