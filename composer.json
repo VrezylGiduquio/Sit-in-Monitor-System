@@ -1,15 +1,6 @@
-<?php
-/**
- * Root composer.json for Vercel deployment.
- *
- * Vercel runs `composer install` from this level.  Dependencies needed
- * by the PHP runtime are listed here; the per-application dependencies
- * inside php-frontend-and-backend/ are still available via its own
- * composer.json when running locally.
- */
 {
     "name": "ccs/sitin-monitor",
-    "description": "CCS Sit-in Monitoring System — Vercel deployment",
+    "description": "CCS Sit-in Monitoring System -- Vercel deployment",
     "type": "project",
     "require": {
         "php": ">=8.1",
@@ -17,8 +8,7 @@
     },
     "scripts": {
         "vercel": [
-            "@composer install --no-dev --optimize-autoloader",
-            "php -r \"copy('php-frontend-and-backend/composer.json', 'composer-app.json');\""
+            "@composer install --no-dev --optimize-autoloader"
         ]
     },
     "config": {
