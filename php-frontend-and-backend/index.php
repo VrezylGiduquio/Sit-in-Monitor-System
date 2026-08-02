@@ -15,7 +15,14 @@ if (($adminSession['role'] ?? '') === 'admin' && !empty($adminSession['admin_log
 ?>
 <!DOCTYPE html>
 <html lang="en">
-<head
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CCS Sit-in Monitoring System</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
   <section class="auth-section">
     <div class="auth-card landing-shell">
       <div class="landing-hero">
@@ -88,4 +95,3 @@ if (($adminSession['role'] ?? '') === 'admin' && !empty($adminSession['admin_log
   </section>
 </body>
 </html>
-    

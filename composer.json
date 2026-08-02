@@ -3,8 +3,7 @@
     "description": "CCS Sit-in Monitoring System -- Vercel deployment",
     "type": "project",
     "require": {
-        "php": ">=8.1",
-        "turso/libsql": "^0.4"
+        "php": ">=8.1"
     },
     "scripts": {
         "vercel": [
